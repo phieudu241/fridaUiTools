@@ -1091,7 +1091,7 @@
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>16.0.8</string>
+    <string>17.5.2</string>
    </property>
   </action>
   <action name="actionChina">

@@ -281,7 +281,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
 
         self.curFridaVer = "14.2.18"
         self.actionVer14.setChecked(True)
-        # 16.0.8  15.1.9  14.2.18
+        # 17.5.2  15.1.9  14.2.18
         # res=CmdUtil.execCmdData("frida --version")
         # if "15." in res:
         #     self.curFridaVer = "15.1.9"
@@ -290,7 +290,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         #     self.curFridaVer = "14.2.18"
         #     self.actionVer14.setChecked(True)
         # elif "16." in res:
-        #     self.curFridaVer = "16.0.8"
+        #     self.curFridaVer = "17.5.2"
         #     self.actionVer16.setChecked(True)
         # else:
         #     self.curFridaVer = "15.1.9"
@@ -664,7 +664,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
     def ChangeVer16(self, checked):
         if checked==False:
             return
-        self.curFridaVer = "16.0.8"
+        self.curFridaVer = "17.5.2"
 
     def ChangeEnglish(self,checked):
         if checked==False:

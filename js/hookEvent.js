@@ -64,5 +64,15 @@ function OnClickListener() {
         // })
     })
 }
+
+function waitForJava() {
+    if (typeof Java !== "undefined" && Java.available) {
+        OnClickListener();
+    } else {
+        setTimeout(waitForJava, 100);
+    }
+}
+
+
 setImmediate(OnClickListener);
 })();

@@ -510,7 +510,7 @@
     </message>
     <message>
         <location filename="kmain.py" line="635"/>
-        <source>16.0.8</source>
+        <source>17.5.2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
