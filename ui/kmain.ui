@@ -856,6 +856,7 @@
     <addaction name="actionVer14"/>
     <addaction name="actionVer15"/>
     <addaction name="actionVer16"/>
+    <addaction name="actionVer17"/>
    </widget>
    <widget class="QMenu" name="menu_3">
     <property name="title">
@@ -1092,6 +1093,14 @@
    </property>
    <property name="text">
     <string>17.5.2</string>
+   </property>
+  </action>
+  <action name="actionVer17">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>17.7.3</string>
    </property>
   </action>
   <action name="actionChina">

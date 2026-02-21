@@ -147,6 +147,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         self.actionVer14.triggered.connect(self.ChangeVer14)
         self.actionVer15.triggered.connect(self.ChangeVer15)
         self.actionVer16.triggered.connect(self.ChangeVer16)
+        self.actionVer17.triggered.connect(self.ChangeVer17)
         self.actionEnglish.triggered.connect(self.ChangeEnglish)
         self.actionChina.triggered.connect(self.ChangeChina)
 
@@ -155,6 +156,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         self.verGroup.addAction(self.actionVer14)
         self.verGroup.addAction(self.actionVer15)
         self.verGroup.addAction(self.actionVer16)
+        self.verGroup.addAction(self.actionVer17)
 
         self.btnDumpPtr.clicked.connect(self.dumpPtr)
         self.btnDumpSo.clicked.connect(self.dumpSo)
@@ -665,6 +667,11 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         if checked==False:
             return
         self.curFridaVer = "17.5.2"
+
+    def ChangeVer17(self, checked):
+        if checked==False:
+            return
+        self.curFridaVer = "17.7.3"
 
     def ChangeEnglish(self,checked):
         if checked==False:

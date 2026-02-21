@@ -515,6 +515,11 @@
     </message>
     <message>
         <location filename="kmain.py" line="636"/>
+        <source>17.7.3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="637"/>
         <source>中文</source>
         <translation type="unfinished"></translation>
     </message>
