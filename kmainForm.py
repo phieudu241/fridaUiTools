@@ -261,6 +261,8 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         self.chkLibArt.tag = "libArt"
         self.chkHookEvent.tag = "hookEvent"
         self.connType="usb"
+        self.deviceActionGroup = QActionGroup(self)
+        self.deviceActionGroup.setExclusive(True)
 
 
 
@@ -302,6 +304,66 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         else:
             self.curFridaVer = "15.1.9"
             self.actionVer15.setChecked(True)
+
+        self.actionRefreshDevices.triggered.connect(self.refreshDeviceMenu)
+        self.initDeviceMenu()
+
+    def initDeviceMenu(self):
+        """Populate the Device menu with currently connected devices."""
+        self.refreshDeviceMenu()
+
+    def refreshDeviceMenu(self):
+        """Refresh the Device menu: clear device actions and re-populate from adb devices."""
+        # Remove all existing device actions (keep Refresh and the separator)
+        for action in list(self.deviceActionGroup.actions()):
+            self.deviceActionGroup.removeAction(action)
+            self.menuDevice.removeAction(action)
+
+        devices = CmdUtil.getConnectedDevices()
+        if not devices:
+            noDevAction = QtWidgets.QAction(self._translate("kmainForm", "(no device connected)"), self)
+            noDevAction.setEnabled(False)
+            self.menuDevice.addAction(noDevAction)
+            self.deviceActionGroup.addAction(noDevAction)
+            CmdUtil.deviceSerial = ""
+            self._updateDeviceLabel()
+            return
+
+        for serial, state in devices:
+            label = f"{serial}  [{state}]"
+            action = QtWidgets.QAction(label, self)
+            action.setCheckable(True)
+            action.setData(serial)
+            self.deviceActionGroup.addAction(action)
+            self.menuDevice.addAction(action)
+            action.triggered.connect(lambda checked, s=serial: self.selectDevice(s))
+
+        # Auto-select: keep previously selected if still present, else pick first
+        serials = [s for s, _ in devices]
+        if CmdUtil.deviceSerial in serials:
+            # Re-check the previously selected action
+            for action in self.deviceActionGroup.actions():
+                if action.data() == CmdUtil.deviceSerial:
+                    action.setChecked(True)
+                    break
+        else:
+            # Select first device by default
+            first_action = self.deviceActionGroup.actions()[0]
+            first_action.setChecked(True)
+            CmdUtil.deviceSerial = first_action.data()
+
+        self._updateDeviceLabel()
+
+    def selectDevice(self, serial):
+        """Set the active device serial for all adb operations."""
+        CmdUtil.deviceSerial = serial
+        self._updateDeviceLabel()
+        self.log(self._translate("kmainForm", "已切换设备: ") + serial)
+
+    def _updateDeviceLabel(self):
+        """Update the status bar to show the currently selected device."""
+        device_info = f"  |  Device: {CmdUtil.deviceSerial}" if CmdUtil.deviceSerial else ""
+        self.labStatus.setText(self._translate("kmainForm", "当前状态:未连接") + device_info)
 
     def clearSymbol(self):
         self.listSymbol.clear()
@@ -609,14 +671,17 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         adb = "adb"
         if platform.system() == "Darwin":
             adb = "%adb%"
+        # Inject device serial into adb calls inside the script
+        adb_serial = adb
+        if CmdUtil.deviceSerial:
+            adb_serial = f"{adb} -s {CmdUtil.deviceSerial}"
         if self.connType == "wifi":
             data = data.replace("%fridaName%", name + " -l 0.0.0.0:" + self.wifi_port)
-
-            data=data.replace("%customPort%",f"{adb} forward tcp:{self.wifi_port} tcp:{self.wifi_port}")
+            data=data.replace("%customPort%",f"{adb_serial} forward tcp:{self.wifi_port} tcp:{self.wifi_port}")
         elif self.connType == "usb":
             if self.customPort!=None and len(self.customPort)>0:
                 data = data.replace("%fridaName%", name + " -l 0.0.0.0:" + self.customPort)
-                data=data.replace("%customPort%",f"{adb} forward tcp:{self.customPort} tcp:{self.customPort}")
+                data=data.replace("%customPort%",f"{adb_serial} forward tcp:{self.customPort} tcp:{self.customPort}")
             else:
                 data = data.replace("%fridaName%", name)
                 data = data.replace("%customPort%","")
@@ -626,7 +691,14 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             data = data.replace("%sumod%", "su -c")
         elif self.actionMks0.isChecked():
             data = data.replace("%sumod%", "mks 0")
-        
+
+        # Replace all bare "adb " references in the script with the serial-aware prefix
+        if CmdUtil.deviceSerial:
+            data = data.replace(f"{adb} shell", f"{adb_serial} shell")
+            data = data.replace(f"{adb} forward", f"{adb_serial} forward")
+            data = data.replace(f"{adb} push", f"{adb_serial} push")
+            data = data.replace(f"{adb} pull", f"{adb_serial} pull")
+
         if platform.system()=="Darwin":
             adbPath= CmdUtil.execCmdData("which adb")
             if adbPath=="":
@@ -872,6 +944,12 @@ class kmainForm(QMainWindow, Ui_MainWindow):
                 device = manager.add_remote_device(str_host)
                 return device
             else:
+                # If a specific device serial is selected, use it; otherwise fall back to default USB device
+                if CmdUtil.deviceSerial:
+                    manager = frida.get_device_manager()
+                    for dev in manager.enumerate_devices():
+                        if dev.id == CmdUtil.deviceSerial:
+                            return dev
                 return frida.get_usb_device()
         elif self.connType=="wifi":
             str_host = "%s:%s" % (self.address, self.wifi_port)
@@ -951,14 +1029,15 @@ class kmainForm(QMainWindow, Ui_MainWindow):
 
     # 修改ui的状态表现
     def changeAttachStatus(self, isattach):
+        device_info = f"  |  Device: {CmdUtil.deviceSerial}" if CmdUtil.deviceSerial else ""
         if isattach:
             self.menuAttach.setEnabled(False)
             self.actionStop.setEnabled(True)
-            self.labStatus.setText( self._translate("kmainForm","当前状态:已连接") )
+            self.labStatus.setText(self._translate("kmainForm","当前状态:已连接") + device_info)
         else:
             self.menuAttach.setEnabled(True)
             self.actionStop.setEnabled(False)
-            self.labStatus.setText(self._translate("kmainForm","当前状态:未连接") )
+            self.labStatus.setText(self._translate("kmainForm","当前状态:未连接") + device_info)
             self.labPackage.setText("")
 
     # 根据进程名进行附加进程
@@ -1554,7 +1633,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
                             self._translate("kmainForm","\nfridaUiTools: 缝合怪,常用脚本整合的界面化工具 \nAuthor: https://github.com/dqzg12300"))
 
     def appInfoFlush(self):
-        res = CmdUtil.exec("adb shell dumpsys window")
+        res = CmdUtil.execCmdData("adb shell dumpsys window")
         m1 = re.search("mCurrentFocus=Window\\{(.+?)\\}", res)
         if m1 == None:
             self.log(res)
@@ -1580,7 +1659,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             return
         self.txtProcessName.setText(m1dataSp[0])
         self.txtCurrentFocus.setText(m1dataSp[1])
-        res = CmdUtil.exec("adb shell dumpsys activity -p " + self.txtProcessName.text())
+        res = CmdUtil.execCmdData("adb shell dumpsys activity -p " + self.txtProcessName.text())
         m2 = re.search(r" (\d+?):%s/" % m1dataSp[0], res)
         if m2 == None:
             return
