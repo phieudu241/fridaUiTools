@@ -640,7 +640,7 @@ class Ui_MainWindow(object):
         self.actionChangePort.setText(_translate("MainWindow", "修改默认端口"))
         self.actionConsoleLog.setText(_translate("MainWindow", "关闭输出日志"))
         self.actionMks0.setText(_translate("MainWindow", "adb shell mks 0"))
-        self.actionVer16.setText(_translate("MainWindow", "17.5.2"))
+        self.actionVer16.setText(_translate("MainWindow", "16.5.6"))
         self.actionVer17.setText(_translate("MainWindow", "17.7.3"))
         self.actionChina.setText(_translate("MainWindow", "中文"))
         self.actionEnglish.setText(_translate("MainWindow", "English"))

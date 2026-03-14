@@ -3,10 +3,11 @@ function klog(data,...args){
         data+="\t"+item;
     }
     var message={};
-    message["jsname"]="jni_trace_new";
+    message["jsname"]="anti_frida";
     message["data"]=data;
     send(message);
 }
+
 function fridaCheckPass() {
     var pfn_strstr = Module.findExportByName("libc.so", "strstr");
     console.log("hook strstr 111");
@@ -36,6 +37,8 @@ function fridaCheckPass() {
             if (this.hook) {
                 retval.replace(0);
             }
+
+            return retval;
         }
     });
 }

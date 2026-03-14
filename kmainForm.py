@@ -283,20 +283,20 @@ class kmainForm(QMainWindow, Ui_MainWindow):
 
         self.curFridaVer = "14.2.18"
         self.actionVer14.setChecked(True)
-        # 17.5.2  15.1.9  14.2.18
-        # res=CmdUtil.execCmdData("frida --version")
-        # if "15." in res:
-        #     self.curFridaVer = "15.1.9"
-        #     self.actionVer15.setChecked(True)
-        # elif "14." in res:
-        #     self.curFridaVer = "14.2.18"
-        #     self.actionVer14.setChecked(True)
-        # elif "16." in res:
-        #     self.curFridaVer = "17.5.2"
-        #     self.actionVer16.setChecked(True)
-        # else:
-        #     self.curFridaVer = "15.1.9"
-        #     self.actionVer15.setChecked(True)
+        # 16.5.6  15.1.9  14.2.18
+        res=CmdUtil.execCmdData("frida --version")
+        if "15." in res:
+            self.curFridaVer = "15.1.9"
+            self.actionVer15.setChecked(True)
+        elif "14." in res:
+            self.curFridaVer = "14.2.18"
+            self.actionVer14.setChecked(True)
+        elif "16." in res:
+            self.curFridaVer = "16.5.6"
+            self.actionVer16.setChecked(True)
+        else:
+            self.curFridaVer = "15.1.9"
+            self.actionVer15.setChecked(True)
 
     def clearSymbol(self):
         self.listSymbol.clear()
@@ -666,7 +666,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
     def ChangeVer16(self, checked):
         if checked==False:
             return
-        self.curFridaVer = "17.5.2"
+        self.curFridaVer = "16.5.6"
 
     def ChangeVer17(self, checked):
         if checked==False:
