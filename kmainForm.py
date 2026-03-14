@@ -137,6 +137,11 @@ class kmainForm(QMainWindow, Ui_MainWindow):
 
         self.actionFridax86Start.triggered.connect(self.FridaX86Start)
         self.actionFridax64Start.triggered.connect(self.FridaX64Start)
+        self.actionFridaStop.triggered.connect(self.FridaStopAll)
+        self.actionFrida32Stop.triggered.connect(self.Frida32Stop)
+        self.actionFrida64Stop.triggered.connect(self.Frida64Stop)
+        self.actionFridax86Stop.triggered.connect(self.FridaX86Stop)
+        self.actionFridax64Stop.triggered.connect(self.FridaX64Stop)
         self.actionPullApk.triggered.connect(self.PullApk)
 
         self.connectHeadGroup = QActionGroup(self)
@@ -721,6 +726,87 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         else:
             name=f"frida-server-{self.curFridaVer}-android-x86_64"
         self.ShStart(name)
+
+    def _fridaStopByName(self, name):
+        """Kill a frida-server process on the device by its binary name."""
+        res = CmdUtil.adbshellCmd(f"pkill -9 -f {name}")
+        self.log(res)
+        return res
+
+    def FridaStopAll(self):
+        """Stop all running frida-server instances on the device."""
+        self.log(self._translate("kmainForm", "停止所有 frida-server..."))
+        if self.fridaName and len(self.fridaName) > 0:
+            names = [self.fridaName, self.fridaName + "32", self.fridaName + "64"]
+        else:
+            names = [
+                f"frida-server-{self.curFridaVer}-android-arm",
+                f"frida-server-{self.curFridaVer}-android-arm64",
+                f"frida-server-{self.curFridaVer}-android-x86",
+                f"frida-server-{self.curFridaVer}-android-x86_64",
+                "frida-server",
+            ]
+        failed = False
+        for name in names:
+            res = self._fridaStopByName(name)
+            if "error" in res.lower():
+                failed = True
+        if failed:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "部分 frida-server 停止失败，请检查su权限"))
+        else:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "已发送停止信号给所有 frida-server"))
+
+    def Frida32Stop(self):
+        """Stop frida-server (arm) on the device."""
+        self.log(self._translate("kmainForm", "stop frida-server (arm)..."))
+        if self.fridaName and len(self.fridaName) > 0:
+            name = self.fridaName + "32"
+        else:
+            name = f"frida-server-{self.curFridaVer}-android-arm"
+        res = self._fridaStopByName(name)
+        if "error" in res.lower():
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "停止失败，请检查su权限") + "\n" + res)
+        else:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "已发送停止信号给 frida-server (arm)"))
+
+    def Frida64Stop(self):
+        """Stop frida-server (arm64) on the device."""
+        self.log(self._translate("kmainForm", "stop frida-server (arm64)..."))
+        if self.fridaName and len(self.fridaName) > 0:
+            name = self.fridaName + "64"
+        else:
+            name = f"frida-server-{self.curFridaVer}-android-arm64"
+        res = self._fridaStopByName(name)
+        if "error" in res.lower():
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "停止失败，请检查su权限") + "\n" + res)
+        else:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "已发送停止信号给 frida-server (arm64)"))
+
+    def FridaX86Stop(self):
+        """Stop frida-server (x86) on the device."""
+        self.log(self._translate("kmainForm", "stop frida-server (x86)..."))
+        if self.fridaName and len(self.fridaName) > 0:
+            name = self.fridaName + "32"
+        else:
+            name = f"frida-server-{self.curFridaVer}-android-x86"
+        res = self._fridaStopByName(name)
+        if "error" in res.lower():
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "停止失败，请检查su权限") + "\n" + res)
+        else:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "已发送停止信号给 frida-server (x86)"))
+
+    def FridaX64Stop(self):
+        """Stop frida-server (x64) on the device."""
+        self.log(self._translate("kmainForm", "stop frida-server (x64)..."))
+        if self.fridaName and len(self.fridaName) > 0:
+            name = self.fridaName + "64"
+        else:
+            name = f"frida-server-{self.curFridaVer}-android-x86_64"
+        res = self._fridaStopByName(name)
+        if "error" in res.lower():
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "停止失败，请检查su权限") + "\n" + res)
+        else:
+            QMessageBox().information(self, "hint", self._translate("kmainForm", "已发送停止信号给 frida-server (x64)"))
 
     def changeCmdType(self,data):
         CmdUtil.cmdhead = data

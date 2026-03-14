@@ -336,5 +336,52 @@ Author: https://github.com/dqzg12300</translation>
         <source>请解锁屏幕</source>
         <translation type="unfinished">please unlock the screen</translation>
     </message>
+    <message>
+        <source>停止所有 frida-server...</source>
+        <translation type="unfinished">Stopping all frida-server...</translation>
+    </message>
+    <message>
+        <source>部分 frida-server 停止失败，请检查su权限</source>
+        <translation type="unfinished">Some frida-server failed to stop, please check su permission</translation>
+    </message>
+    <message>
+        <source>已发送停止信号给所有 frida-server</source>
+        <translation type="unfinished">Stop signal sent to all frida-server</translation>
+    </message>
+    <message>
+        <source>stop frida-server (arm)...</source>
+        <translation type="unfinished">Stopping frida-server (arm)...</translation>
+    </message>
+    <message>
+        <source>停止失败，请检查su权限</source>
+        <translation type="unfinished">Stop failed, please check su permission</translation>
+    </message>    <message>
+        <source>已发送停止信号给 frida-server (arm)</source>
+        <translation type="unfinished">Stop signal sent to frida-server (arm)</translation>
+    </message>
+    <message>
+        <source>stop frida-server (arm64)...</source>
+        <translation type="unfinished">Stopping frida-server (arm64)...</translation>
+    </message>
+    <message>
+        <source>已发送停止信号给 frida-server (arm64)</source>
+        <translation type="unfinished">Stop signal sent to frida-server (arm64)</translation>
+    </message>
+    <message>
+        <source>stop frida-server (x86)...</source>
+        <translation type="unfinished">Stopping frida-server (x86)...</translation>
+    </message>
+    <message>
+        <source>已发送停止信号给 frida-server (x86)</source>
+        <translation type="unfinished">Stop signal sent to frida-server (x86)</translation>
+    </message>
+    <message>
+        <source>stop frida-server (x64)...</source>
+        <translation type="unfinished">Stopping frida-server (x64)...</translation>
+    </message>
+    <message>
+        <source>已发送停止信号给 frida-server (x64)</source>
+        <translation type="unfinished">Stop signal sent to frida-server (x64)</translation>
+    </message>
 </context>
 </TS>

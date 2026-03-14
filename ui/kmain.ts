@@ -320,8 +320,8 @@
     </message>
     <message>
         <location filename="kmain.py" line="595"/>
-        <source>启动frida-server</source>
-        <translation type="unfinished">start frida-server</translation>
+        <source>frida-server</source>
+        <translation type="unfinished">frida-server</translation>
     </message>
     <message>
         <location filename="kmain.py" line="596"/>
@@ -435,13 +435,13 @@
     </message>
     <message>
         <location filename="kmain.py" line="620"/>
-        <source>frida-server for arm</source>
-        <translation type="unfinished"></translation>
+        <source>start frida-server (arm)</source>
+        <translation type="unfinished">start frida-server (arm)</translation>
     </message>
     <message>
         <location filename="kmain.py" line="621"/>
-        <source>frida-server for arm64</source>
-        <translation type="unfinished"></translation>
+        <source>start frida-server (arm64)</source>
+        <translation type="unfinished">start frida-server (arm64)</translation>
     </message>
     <message>
         <location filename="kmain.py" line="622"/>
@@ -455,13 +455,38 @@
     </message>
     <message>
         <location filename="kmain.py" line="624"/>
-        <source>frida-server for x86</source>
-        <translation type="unfinished"></translation>
+        <source>start frida-server (x86)</source>
+        <translation type="unfinished">start frida-server (x86)</translation>
     </message>
     <message>
         <location filename="kmain.py" line="625"/>
-        <source>frida-server for x64</source>
-        <translation type="unfinished"></translation>
+        <source>start frida-server (x64)</source>
+        <translation type="unfinished">start frida-server (x64)</translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="648"/>
+        <source>stop frida-server (all)</source>
+        <translation type="unfinished">stop frida-server (all)</translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="649"/>
+        <source>stop frida-server (arm)</source>
+        <translation type="unfinished">stop frida-server (arm)</translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="650"/>
+        <source>stop frida-server (arm64)</source>
+        <translation type="unfinished">stop frida-server (arm64)</translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="651"/>
+        <source>stop frida-server (x86)</source>
+        <translation type="unfinished">stop frida-server (x86)</translation>
+    </message>
+    <message>
+        <location filename="kmain.py" line="652"/>
+        <source>stop frida-server (x64)</source>
+        <translation type="unfinished">stop frida-server (x64)</translation>
     </message>
     <message>
         <location filename="kmain.py" line="626"/>
