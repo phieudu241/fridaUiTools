@@ -306,7 +306,9 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             self.actionVer15.setChecked(True)
 
         self.actionRefreshDevices.triggered.connect(self.refreshDeviceMenu)
+        self.actionRefreshFridaVer.triggered.connect(self.refreshFridaVersionInfo)
         self.initDeviceMenu()
+        self.refreshFridaVersionInfo()
 
     def initDeviceMenu(self):
         """Populate the Device menu with currently connected devices."""
@@ -359,11 +361,127 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         CmdUtil.deviceSerial = serial
         self._updateDeviceLabel()
         self.log(self._translate("kmainForm", "已切换设备: ") + serial)
+        # Refresh frida server version for the newly selected device
+        threading.Thread(target=self._fetchFridaServerVer, daemon=True).start()
 
     def _updateDeviceLabel(self):
         """Update the status bar to show the currently selected device."""
         device_info = f"  |  Device: {CmdUtil.deviceSerial}" if CmdUtil.deviceSerial else ""
         self.labStatus.setText(self._translate("kmainForm", "当前状态:未连接") + device_info)
+
+    def refreshFridaVersionInfo(self):
+        """Refresh all frida version labels in a background thread."""
+        self.actionFridaLibVer.setText("frida lib: (checking...)")
+        self.actionFridaClientVer.setText("frida client: (checking...)")
+        self.actionFridaToolsVer.setText("frida-tools: (checking...)")
+        self.actionFridaServerVer.setText("frida server: (checking...)")
+        threading.Thread(target=self._fetchAllFridaVersions, daemon=True).start()
+
+    def _fetchAllFridaVersions(self):
+        """Background worker: fetch frida lib, frida client, frida-tools, and frida server versions."""
+        # --- frida lib (installed Python package in current venv/env) ---
+        try:
+            import frida as _frida
+            lib_text = f"frida lib: {_frida.__version__}"
+        except Exception:
+            lib_text = "frida lib: not installed"
+
+        # Build a system-level environment: strip the venv Scripts dir from PATH
+        # so that 'frida' and 'pip' resolve to the system-installed versions.
+        import sys as _sys
+        import os as _os
+        import subprocess as _subprocess
+        venv_scripts = _os.path.normcase(_os.path.dirname(_sys.executable))
+        sys_env = _os.environ.copy()
+        # Remove venv from PATH
+        path_parts = sys_env.get("PATH", "").split(_os.pathsep)
+        path_parts = [p for p in path_parts if _os.path.normcase(p) != venv_scripts]
+        sys_env["PATH"] = _os.pathsep.join(path_parts)
+        # Remove venv markers so pip doesn't think it's inside the venv
+        sys_env.pop("VIRTUAL_ENV", None)
+        sys_env.pop("VIRTUAL_ENV_PROMPT", None)
+
+        def _run_system(cmd):
+            """Run a command in the system (non-venv) environment and return stdout."""
+            try:
+                proc = _subprocess.Popen(
+                    cmd, shell=True,
+                    stdout=_subprocess.PIPE, stderr=_subprocess.PIPE,
+                    env=sys_env
+                )
+                out, _ = proc.communicate(timeout=10)
+                return out.decode("utf-8", errors="replace").strip()
+            except Exception:
+                return ""
+
+        # --- frida client (system CLI: frida --version) ---
+        try:
+            res = _run_system("frida --version")
+            # Strip ANSI escape codes (e.g. '\x1b[0m') then whitespace
+            res = re.sub(r'\x1b\[[0-9;]*m', '', res).strip()
+            if res and len(res) < 30 and res[0].isdigit():
+                client_text = f"frida client: {res}"
+            else:
+                client_text = "frida client: not installed"
+        except Exception:
+            client_text = "frida client: not installed"
+
+        # --- frida-tools (system pip show frida-tools) ---
+        try:
+            # res = CmdUtil.execCmdData("pip show frida-tools").strip() // run with .venv environment, may not reflect system pip
+            res = _run_system("pip show frida-tools")
+            ver_line = [l for l in res.splitlines() if l.lower().startswith("version")]
+            if ver_line:
+                tools_ver = ver_line[0].split(":", 1)[-1].strip()
+                tools_text = f"frida-tools: {tools_ver}"
+            else:
+                tools_text = "frida-tools: not installed"
+        except Exception:
+            tools_text = "frida-tools: not installed"
+
+        # --- frida server on device ---
+        server_text = self._getFridaServerVerText()
+
+        self.actionFridaLibVer.setText(lib_text)
+        self.actionFridaClientVer.setText(client_text)
+        self.actionFridaToolsVer.setText(tools_text)
+        self.actionFridaServerVer.setText(server_text)
+
+    def _fetchFridaServerVer(self):
+        """Background worker: fetch only frida server version and update the menu item."""
+        self.actionFridaServerVer.setText("frida server: (checking...)")
+        server_text = self._getFridaServerVerText()
+        self.actionFridaServerVer.setText(server_text)
+
+    def _getFridaServerVerText(self):
+        """Return a display string for the frida server version running on the selected device."""
+        if not CmdUtil.deviceSerial and not CmdUtil.getConnectedDevices():
+            return "frida server: (no device)"
+        try:
+            # Try to find a running frida-server process and get its version
+            res = CmdUtil.execCmdData(
+                f"adb {'-s ' + CmdUtil.deviceSerial if CmdUtil.deviceSerial else ''} shell "
+                f"\"ps -A | grep -E 'fservice|frida'\""
+            ).strip()
+            if not res or "frida" and "fservice" not in res:
+                return "frida server: not running"
+            # Extract the binary name from ps output
+            binary = None
+            for line in res.splitlines():
+                parts = line.split()
+                if parts:
+                    binary = parts[-1]
+                    break
+            if binary:
+                ver_res = CmdUtil.execCmdData(
+                    f"adb {'-s ' + CmdUtil.deviceSerial if CmdUtil.deviceSerial else ''} shell "
+                    f"\"/data/local/tmp/{binary} --version\""
+                ).strip()
+                if ver_res and len(ver_res) < 30:
+                    return f"frida server: {ver_res}"
+            return "frida server: running (version unknown)"
+        except Exception as ex:
+            return f"frida server: error ({ex})"
 
     def clearSymbol(self):
         self.listSymbol.clear()
