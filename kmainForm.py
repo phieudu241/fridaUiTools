@@ -32,6 +32,7 @@ from forms.Wifi import wifiForm
 from forms.ZenTracer import zenTracerForm
 from ui.kmain import Ui_MainWindow
 from utils import LogUtil, CmdUtil, FileUtil
+from utils.LogSearchUtil import LogSearchBar
 import json, os, threading, frida
 import platform
 
@@ -247,6 +248,14 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         self.searchMemForm= searchMemoryForm()
         self.antiFdForm=antiFridaForm()
 
+        # --- Log search bars ---
+        # oplog (操作日志 / tab_3)
+        self.oplogSearchBar = LogSearchBar(self.txtLogs, self.tab_3)
+        self._replace_placeholder(self.oplogSearchPlaceholder, self.gridLayout_3, self.oplogSearchBar)
+        # outlog (输出日志 / tab_5)
+        self.outlogSearchBar = LogSearchBar(self.txtoutLogs, self.tab_5)
+        self._replace_placeholder(self.outlogSearchPlaceholder, self.gridLayout_2, self.outlogSearchBar)
+
         self.modules = None
         self.classes = None
         self.symbols = None
@@ -369,6 +378,22 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         """Update the status bar to show the currently selected device."""
         device_info = f"  |  Device: {CmdUtil.deviceSerial}" if CmdUtil.deviceSerial else ""
         self.labStatus.setText(self._translate("kmainForm", "当前状态:未连接") + device_info)
+
+    @staticmethod
+    def _replace_placeholder(placeholder, grid_layout, new_widget):
+        """
+        Swap a placeholder QWidget in a QGridLayout for `new_widget`.
+        The new widget occupies the same grid cell as the placeholder.
+        """
+        idx = grid_layout.indexOf(placeholder)
+        if idx == -1:
+            # Fallback: just append at the bottom
+            grid_layout.addWidget(new_widget)
+        else:
+            row, col, rowspan, colspan = grid_layout.getItemPosition(idx)
+            grid_layout.removeWidget(placeholder)
+            placeholder.deleteLater()
+            grid_layout.addWidget(new_widget, row, col, rowspan, colspan)
 
     def refreshFridaVersionInfo(self):
         """Refresh all frida version labels in a background thread."""
@@ -589,6 +614,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
 
     def ClearOutlog(self):
         self.txtoutLogs.setPlainText("")
+        self.outlogSearchBar.clear_highlights()
 
     def PushFartSo(self):
         # 有些手机是用su 0来执行shell命令的。不太懂怎么判断是哪种。
@@ -1832,23 +1858,74 @@ def getTrans():
 
 
 if __name__ == "__main__":
-    current_exit_code = 1207
-    app = QApplication(sys.argv)
-    while current_exit_code == 1207:
-        language=conf.read("kmain","language")
-        # changeTranslator(language=="English")
-        transList= getTrans()
-        if language=="English":
-            for trans in transList:
-                app.installTranslator(trans)
-        else:
-            for trans in transList:
-                app.removeTranslator(trans)
-        kmain = kmainForm()
-        kmain.show()
-        current_exit_code=app.exec_()
-        kmain=None
-    sys.exit(current_exit_code)
+    import faulthandler
+    import traceback
+    import datetime
+    from PyQt5.QtCore import qInstallMessageHandler, QtMsgType
+
+    # ------------------------------------------------------------------ crash log
+    _crash_log_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   "logs", "crash.log")
+    os.makedirs(os.path.dirname(_crash_log_path), exist_ok=True)
+    _crash_log_file = open(_crash_log_path, "a", encoding="utf-8")
+
+    def _log_crash(msg):
+        ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        line = f"\n{'='*60}\n[{ts}] {msg}\n{'='*60}\n"
+        print(line, file=sys.stderr, flush=True)
+        _crash_log_file.write(line)
+        _crash_log_file.flush()
+
+    # faulthandler: dumps C-level / stack-overflow tracebacks to file + stderr
+    faulthandler.enable(file=_crash_log_file, all_threads=True)
+
+    # Python unhandled exception hook
+    def _excepthook(exc_type, exc_value, exc_tb):
+        msg = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
+        _log_crash("UNHANDLED PYTHON EXCEPTION:\n" + msg)
+        sys.__excepthook__(exc_type, exc_value, exc_tb)
+    sys.excepthook = _excepthook
+
+    # Qt message handler – captures qWarning / qCritical / qFatal
+    def _qt_message_handler(mode, context, message):
+        level_map = {
+            QtMsgType.QtDebugMsg:    "Qt DEBUG",
+            QtMsgType.QtInfoMsg:     "Qt INFO",
+            QtMsgType.QtWarningMsg:  "Qt WARNING",
+            QtMsgType.QtCriticalMsg: "Qt CRITICAL",
+            QtMsgType.QtFatalMsg:    "Qt FATAL",
+        }
+        level = level_map.get(mode, "Qt MSG")
+        loc = f"{context.file}:{context.line}" if context.file else "unknown"
+        _log_crash(f"{level} [{loc}]: {message}")
+    qInstallMessageHandler(_qt_message_handler)
+
+    _log_crash("Application starting")
+
+    # ------------------------------------------------------------------ main loop
+    try:
+        current_exit_code = 1207
+        app = QApplication(sys.argv)
+        while current_exit_code == 1207:
+            language = conf.read("kmain", "language")
+            transList = getTrans()
+            if language == "English":
+                for trans in transList:
+                    app.installTranslator(trans)
+            else:
+                for trans in transList:
+                    app.removeTranslator(trans)
+            kmain = kmainForm()
+            kmain.show()
+            current_exit_code = app.exec_()
+            kmain = None
+        _log_crash(f"Application exited normally with code {current_exit_code}")
+        sys.exit(current_exit_code)
+    except Exception:
+        _log_crash("EXCEPTION IN MAIN LOOP:\n" + traceback.format_exc())
+        sys.exit(1)
+    finally:
+        _crash_log_file.close()
 
 
 
