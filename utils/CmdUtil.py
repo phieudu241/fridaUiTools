@@ -27,7 +27,13 @@ def getDeviceArch(serial):
     try:
         cmd = f"adb -s {serial} shell getprop ro.product.cpu.abi"
         result = exec(cmd).strip()
-        return result if result else "unknown"
+        if result:
+            if "unauthorized" in result:
+                return "unauthorized"
+            else:
+                return result
+        else:
+            return "unknown"
     except Exception:
         return "unknown"
 
