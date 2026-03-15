@@ -22,6 +22,15 @@ def getConnectedDevices():
                 devices.append((parts[0].strip(), parts[1].strip()))
     return devices
 
+def getDeviceArch(serial):
+    """Return the CPU ABI string for the given device serial (e.g. 'arm64-v8a')."""
+    try:
+        cmd = f"adb -s {serial} shell getprop ro.product.cpu.abi"
+        result = exec(cmd).strip()
+        return result if result else "unknown"
+    except Exception:
+        return "unknown"
+
 def exec(cmd):
     proc = subprocess.Popen(
         cmd,

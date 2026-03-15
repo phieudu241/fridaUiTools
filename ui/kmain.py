@@ -693,7 +693,7 @@ class Ui_MainWindow(object):
         self.actionVer17.setText(_translate("MainWindow", "17.7.3"))
         self.actionChina.setText(_translate("MainWindow", "中文"))
         self.actionEnglish.setText(_translate("MainWindow", "English"))
-        self.menuDevice.setTitle(_translate("MainWindow", "Device"))
+        self.menuDevice.setTitle(_translate("MainWindow", "device"))
         self.actionRefreshDevices.setText(_translate("MainWindow", "Refresh"))
         self.actionRefreshFridaVer.setText(_translate("MainWindow", "Refresh Version Info"))
         self.actionFridaLibVer.setText(_translate("MainWindow", "frida lib: (checking...)"))

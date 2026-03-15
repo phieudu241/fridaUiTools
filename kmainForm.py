@@ -332,7 +332,8 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             return
 
         for serial, state in devices:
-            label = f"{serial}  [{state}]"
+            arch = CmdUtil.getDeviceArch(serial)
+            label = f"{serial}  [{arch}]  [{state}]"
             action = QtWidgets.QAction(label, self)
             action.setCheckable(True)
             action.setData(serial)
