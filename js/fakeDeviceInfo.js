@@ -6,7 +6,7 @@ function randomChoice(arr) {
 
 // ===== VALUE POOLS =====
 // Each array has 20 entries; all arrays share the same index so that
-// model/manufacturer/brand/device/board/hardware/fingerprint/display/bootloader
+// model/manufacturer/brand/device/board/hardware/fingerprint/display/bootloader/product
 // are always internally consistent for the selected device.
 const profiles = {
     android_id: [
@@ -245,25 +245,45 @@ const profiles = {
         "exynos"
     ],
     fingerprint: [
+        // idx=0  Pixel 8           brand=google   product=husky      device=husky      os=14 display=UP1A.231005.007
         "google/husky/husky:14/UP1A.231005.007/10754064:user/release-keys",
+        // idx=1  Galaxy S21        brand=samsung  product=o1sxxx     device=o1s        os=13 display=TP1A.220624.014
         "samsung/o1sxxx/o1s:13/TP1A.220624.014/G991BXXU5CWLA:user/release-keys",
-        "xiaomi/nuwa/nuwa:13/TKQ1.221114.001/V14.0.6.0.TMACNXM:user/release-keys",
-        "OnePlus/OP11/OP11:13/SKQ1.221119.001/T.13f6a92_f7bf:user/release-keys",
-        "vivo/V2185A/V2185A:13/TP1A.220624.014/compiler09101556:user/release-keys",
+        // idx=2  Mi 13             brand=xiaomi   product=nuwa       device=nuwa       os=12 display=TKQ1.221114.001
+        "xiaomi/nuwa/nuwa:12/TKQ1.221114.001/V14.0.6.0.TMACNXM:user/release-keys",
+        // idx=3  OnePlus 11        brand=oneplus  product=OP11       device=OP11       os=13 display=SKQ1.221119.001
+        "oneplus/OP11/OP11:13/SKQ1.221119.001/T.13f6a92_f7bf:user/release-keys",
+        // idx=4  Vivo X90          brand=vivo     product=V2185A     device=vivoX90    os=14 display=TP1A.220624.014
+        "vivo/V2185A/vivoX90:14/TP1A.220624.014/compiler09101556:user/release-keys",
+        // idx=5  Pixel 7 Pro       brand=google   product=cheetah    device=cheetah    os=14 display=UP1A.231005.007
         "google/cheetah/cheetah:14/UP1A.231005.007/10754064:user/release-keys",
+        // idx=6  Galaxy S22 Ultra  brand=samsung  product=b0sxx      device=b0s        os=13 display=TP1A.220624.014
         "samsung/b0sxx/b0s:13/TP1A.220624.014/S908BXXU4CWLB:user/release-keys",
+        // idx=7  Xiaomi 12         brand=xiaomi   product=zeus       device=zeus       os=12 display=SKQ1.211006.001
         "xiaomi/zeus/zeus:12/SKQ1.211006.001/V13.0.2.0.SKACNXM:user/release-keys",
-        "OnePlus/OnePlus10Pro/OP10Pro:13/SKQ1.221119.001/T.13f6a92:user/release-keys",
+        // idx=8  OnePlus 10 Pro    brand=oneplus  product=OnePlus10Pro device=OP10Pro  os=13 display=SKQ1.221119.001
+        "oneplus/OnePlus10Pro/OP10Pro:13/SKQ1.221119.001/T.13f6a92:user/release-keys",
+        // idx=9  Vivo Y33s         brand=vivo     product=V2145      device=V2145      os=11 display=RP1A.200720.012
         "vivo/V2145/V2145:11/RP1A.200720.012/compiler09072355:user/release-keys",
+        // idx=10 Galaxy A54        brand=samsung  product=a54xxx     device=a54x       os=13 display=TP1A.220624.014
         "samsung/a54xxx/a54x:13/TP1A.220624.014/A546BXXS4CWJ5:user/release-keys",
+        // idx=11 Xiaomi 13 Pro     brand=xiaomi   product=fuxi       device=fuxi       os=13 display=TKQ1.221114.001
         "xiaomi/fuxi/fuxi:13/TKQ1.221114.001/V14.0.4.0.TMACNXM:user/release-keys",
+        // idx=12 Pixel 6a          brand=google   product=bluejay    device=bluejay    os=14 display=AP1A.240405.002
         "google/bluejay/bluejay:14/AP1A.240405.002/11480754:user/release-keys",
+        // idx=13 Realme 11 Pro     brand=realme   product=RMX3760    device=RMX3760    os=13 display=TP1A.220624.014
         "realme/RMX3760/RMX3760:13/TP1A.220624.014/S.202308012255:user/release-keys",
-        "OnePlus/ovaltine/ovaltine:13/SKQ1.221119.001/T.1234abcd:user/release-keys",
+        // idx=14 OnePlus Nord CE 3 brand=oneplus  product=ovaltine   device=ovaltine   os=13 display=SKQ1.221119.001
+        "oneplus/ovaltine/ovaltine:13/SKQ1.221119.001/T.1234abcd:user/release-keys",
+        // idx=15 Galaxy Z Fold5    brand=samsung  product=q5qxx      device=q5q        os=13 display=TP1A.220624.014
         "samsung/q5qxx/q5q:13/TP1A.220624.014/F946BXXU1AWI3:user/release-keys",
+        // idx=16 Xiaomi 14         brand=xiaomi   product=houji      device=houji      os=14 display=UKQ1.230804.001
         "xiaomi/houji/houji:14/UKQ1.230804.001/V816.0.3.0.UNACNXM:user/release-keys",
+        // idx=17 Pixel 8 Pro       brand=google   product=shiba      device=shiba      os=14 display=UP1A.231005.007
         "google/shiba/shiba:14/UP1A.231005.007/10754064:user/release-keys",
-        "OnePlus/lemonadep/lemonadep:12/SKQ1.210216.001/R.202205031254:user/release-keys",
+        // idx=18 OnePlus 9 Pro     brand=oneplus  product=lemonadep  device=lemonadep  os=12 display=SKQ1.210216.001
+        "oneplus/lemonadep/lemonadep:12/SKQ1.210216.001/R.202205031254:user/release-keys",
+        // idx=19 Galaxy S21 FE     brand=samsung  product=r8qxx      device=r8q        os=13 display=TP1A.220624.014
         "samsung/r8qxx/r8q:13/TP1A.220624.014/G990BXXU5CWLA:user/release-keys"
     ],
     display: [
@@ -321,6 +341,29 @@ const profiles = {
         "14", "13", "12", "13", "11",
         "13", "13", "14", "13", "13",
         "13", "14", "14", "12", "13"
+    ],
+    // Build.PRODUCT — matches ro.product.name, always consistent with device/brand
+    product: [
+        "husky",          // Pixel 8           (google)
+        "o1sxxx",         // Galaxy S21         (samsung)
+        "nuwa",           // Mi 13 / Xiaomi 13  (xiaomi)
+        "OP11",           // OnePlus 11         (oneplus)
+        "V2185A",         // Vivo X90           (vivo)
+        "cheetah",        // Pixel 7 Pro        (google)
+        "b0sxx",          // Galaxy S22 Ultra   (samsung)
+        "zeus",           // Xiaomi 12          (xiaomi)
+        "OnePlus10Pro",   // OnePlus 10 Pro     (oneplus)
+        "V2145",          // Vivo Y33s          (vivo)
+        "a54xxx",         // Galaxy A54         (samsung)
+        "fuxi",           // Xiaomi 13 Pro      (xiaomi)
+        "bluejay",        // Pixel 6a           (google)
+        "RMX3760",        // Realme 11 Pro      (realme)
+        "ovaltine",       // OnePlus Nord CE 3  (oneplus)
+        "q5qxx",          // Galaxy Z Fold5     (samsung)
+        "houji",          // Xiaomi 14          (xiaomi)
+        "shiba",          // Pixel 8 Pro        (google)
+        "lemonadep",      // OnePlus 9 Pro      (oneplus)
+        "r8qxx"           // Galaxy S21 FE      (samsung)
     ]
 };
 
@@ -340,7 +383,8 @@ const selected = {
     display:      profiles.display[idx],
     bootloader:   profiles.bootloader[idx],
     user:         profiles.user[idx],
-    os_version:   profiles.os_version[idx]
+    os_version:   profiles.os_version[idx],
+    product:      profiles.product[idx]
 };
 console.log("[*] Selected profile:", JSON.stringify(selected));
 
@@ -359,6 +403,7 @@ const propMap = {
     "ro.hardware":              "hardware",
     "ro.build.fingerprint":     "fingerprint",
     "ro.bootloader":            "bootloader",
+    "ro.product.name":          "product",
 //  "ro.build.user":            "user"
 };
 
@@ -390,7 +435,6 @@ Java.perform(function () {
     }
 
     assignField(Build, "MODEL",        selected.model);
-    assignField(Build, "PRODUCT",      selected.model);
     assignField(Build, "MANUFACTURER", selected.manufacturer);
     assignField(Build, "BRAND",        selected.brand);
     assignField(Build, "DEVICE",       selected.device);
@@ -399,6 +443,7 @@ Java.perform(function () {
     assignField(Build, "FINGERPRINT",  selected.fingerprint);
     assignField(Build, "DISPLAY",      selected.display);
     assignField(Build, "BOOTLOADER",   selected.bootloader);
+    assignField(Build, "PRODUCT",      selected.product);
     // assignField(Build, "USER",      selected.user);
     assignField(VERSION, "RELEASE",    selected.os_version);
 
@@ -469,6 +514,7 @@ Java.perform(function () {
             ["FINGERPRINT",     BuildT.FINGERPRINT.value,  selected.fingerprint],
             ["DISPLAY",         BuildT.DISPLAY.value,      selected.display],
             ["BOOTLOADER",      BuildT.BOOTLOADER.value,   selected.bootloader],
+            ["PRODUCT",         BuildT.PRODUCT.value,      selected.product],
             ["VERSION.RELEASE", VERSIONT.RELEASE.value,    selected.os_version],
         ];
 
@@ -498,6 +544,7 @@ Java.perform(function () {
                 ["ro.product.manufacturer",  selected.manufacturer],
                 ["ro.product.brand",         selected.brand],
                 ["ro.product.device",        selected.device],
+                ["ro.product.name",          selected.product],
                 ["ro.build.version.release", selected.os_version],
                 ["ro.build.fingerprint",     selected.fingerprint],
             ];
