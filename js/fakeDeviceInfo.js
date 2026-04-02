@@ -331,10 +331,10 @@ const profiles = {
         "BL4"
     ],
     user: [
-        "user", "release", "test", "prod", "debug",
-        "user", "release", "user", "release", "user",
-        "release", "user", "user", "release", "user",
-        "release", "user", "user", "release", "user"
+        "user", "user", "user", "user", "user",
+        "user", "user", "user", "user", "user",
+        "user", "user", "user", "user", "user",
+        "user", "user", "user", "user", "user"
     ],
     os_version: [
         "10", "11", "12", "13", "14",
@@ -404,7 +404,7 @@ const propMap = {
     "ro.build.fingerprint":     "fingerprint",
     "ro.bootloader":            "bootloader",
     "ro.product.name":          "product",
-//  "ro.build.user":            "user"
+    "ro.build.user":            "user"
 };
 
 function getFakeForKeyJS(key) {
@@ -444,7 +444,7 @@ Java.perform(function () {
     assignField(Build, "DISPLAY",      selected.display);
     assignField(Build, "BOOTLOADER",   selected.bootloader);
     assignField(Build, "PRODUCT",      selected.product);
-    // assignField(Build, "USER",      selected.user);
+    assignField(Build, "USER",         selected.user);
     assignField(VERSION, "RELEASE",    selected.os_version);
 
     // Also hook Build.getString() reflection path used by some apps
