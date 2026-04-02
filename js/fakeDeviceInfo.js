@@ -390,6 +390,7 @@ Java.perform(function () {
     }
 
     assignField(Build, "MODEL",        selected.model);
+    assignField(Build, "PRODUCT",      selected.model);
     assignField(Build, "MANUFACTURER", selected.manufacturer);
     assignField(Build, "BRAND",        selected.brand);
     assignField(Build, "DEVICE",       selected.device);
@@ -414,6 +415,7 @@ Java.perform(function () {
 //                console.log(`[JAVA] SystemProperties.get("${key}"): "${original}" -> "${fake}"`);
                 return fake;
             }
+
             return this.get(key);
         };
 
