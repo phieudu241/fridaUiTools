@@ -371,6 +371,48 @@ const profiles = {
         "shiba",          // Pixel 8 Pro        (google)
         "lemonadep",      // OnePlus 9 Pro      (oneplus)
         "r8qxx"           // Galaxy S21 FE      (samsung)
+    ],
+    // Build.TAGS — real devices always ship with "release-keys"
+    tags: [
+        "release-keys","release-keys","release-keys","release-keys","release-keys",
+        "release-keys","release-keys","release-keys","release-keys","release-keys",
+        "release-keys","release-keys","release-keys","release-keys","release-keys",
+        "release-keys","release-keys","release-keys","release-keys","release-keys"
+    ],
+    // Build.TIME — plausible epoch ms per device profile (2022-2024 range)
+    build_time: [
+        1697155200000, 1672531200000, 1651363200000, 1667260800000, 1697155200000,
+        1697155200000, 1669852800000, 1651363200000, 1667260800000, 1638316800000,
+        1669852800000, 1667260800000, 1712361600000, 1690848000000, 1678233600000,
+        1669852800000, 1693526400000, 1697155200000, 1651363200000, 1669852800000
+    ],
+    // Kernel/os.version strings — realistic for each SoC
+    os_kernel: [
+        "5.15.104-android14-11-00001-g9b6e5d8c8c5c","5.4.210-lineage","5.10.157-android13-9","5.4.231-lineage","5.15.78-android13-8",
+        "5.15.104-android14-4-00001","5.10.157-android13-9","5.10.149-android12-9","5.4.231-lineage","5.4.210-android11-7",
+        "5.10.157-android13-9","5.10.149-android13-7","5.10.177-android13-4","5.10.157-android13-8","5.10.149-android13-6",
+        "5.10.157-android13-9","5.15.78-android14-4","5.15.104-android14-11-00001","5.4.231-android12-5","5.4.210-android13-9"
+    ],
+    // Operator name per profile: US carriers only
+    operator_name: [
+        "T-Mobile","Verizon","AT&T","T-Mobile","Verizon",
+        "AT&T","T-Mobile","Verizon","AT&T","T-Mobile",
+        "Verizon","AT&T","T-Mobile","Verizon","AT&T",
+        "T-Mobile","Verizon","AT&T","T-Mobile","Verizon"
+    ],
+    // Screen resolution [width, height] per profile
+    screen_width:  [1080,1080,1080,1080,1080, 1440,1080,1080,1440,720, 1080,1440,1080,1080,1080, 2176,1440,1344,1080,1080],
+    screen_height: [2400,2400,2340,2400,2376, 3120,2340,2400,3216,1600,2340,3200,2400,2400,2412, 1812,3200,2992,2412,2400],
+    // Locale per profile — US English only
+    locale: [
+        "en_US","en_US","en_US","en_US","en_US",
+        "en_US","en_US","en_US","en_US","en_US",
+        "en_US","en_US","en_US","en_US","en_US",
+        "en_US","en_US","en_US","en_US","en_US"
+    ],
+    // Battery level (%) per profile — realistic mid-range values
+    battery_level: [
+        72,85,63,91,77, 55,88,44,66,33, 79,92,51,68,84, 37,73,61,89,47
     ]
 };
 
@@ -379,25 +421,33 @@ const profiles = {
 // =======================
 const idx = Math.floor(Math.random() * profiles.model.length);
 const selected = {
-    android_id:   randomChoice(profiles.android_id),
-    model:        profiles.model[idx],
-    manufacturer: profiles.manufacturer[idx],
-    brand:        profiles.brand[idx],
-    device:       profiles.device[idx],
-    board:        profiles.board[idx],
-    hardware:     profiles.hardware[idx],
-    fingerprint:  profiles.fingerprint[idx],
-    display:      profiles.display[idx],
-    bootloader:   profiles.bootloader[idx],
-    user:         profiles.user[idx],
-    os_version:   profiles.os_version[idx],
-    sdk_int:      profiles.sdk_int[idx],
-    product:      profiles.product[idx]
+    android_id:    randomChoice(profiles.android_id),
+    model:         profiles.model[idx],
+    manufacturer:  profiles.manufacturer[idx],
+    brand:         profiles.brand[idx],
+    device:        profiles.device[idx],
+    board:         profiles.board[idx],
+    hardware:      profiles.hardware[idx],
+    fingerprint:   profiles.fingerprint[idx],
+    display:       profiles.display[idx],
+    bootloader:    profiles.bootloader[idx],
+    user:          profiles.user[idx],
+    os_version:    profiles.os_version[idx],
+    sdk_int:       profiles.sdk_int[idx],
+    product:       profiles.product[idx],
+    tags:          profiles.tags[idx],
+    build_time:    profiles.build_time[idx],
+    os_kernel:     profiles.os_kernel[idx],
+    operator_name: profiles.operator_name[idx],
+    screen_width:  profiles.screen_width[idx],
+    screen_height: profiles.screen_height[idx],
+    locale:        profiles.locale[idx],
+    battery_level: profiles.battery_level[idx]
 };
 console.log("[*] Selected profile:", JSON.stringify(selected));
 
 // =======================
-// SHARED HELPERS & PROP MAP (declared before all hooks)
+// SHARED HELPERS & PROP MAP
 // =======================
 const propMap = {
     "ro.build.version.release": "os_version",
@@ -413,26 +463,26 @@ const propMap = {
     "ro.build.fingerprint":     "fingerprint",
     "ro.bootloader":            "bootloader",
     "ro.product.name":          "product",
-    "ro.build.user":            "user"
+    "ro.build.user":            "user",
+    "ro.build.tags":            "tags",
+    "ro.build.version.release_or_codename": "os_version"
 };
 
 function getFakeForKeyJS(key) {
     const poolName = propMap[key];
     if (!poolName) return null;
-    return selected[poolName] || null;
+    const v = selected[poolName];
+    return (v !== undefined && v !== null) ? String(v) : null;
 }
 
 // =======================
-// JAVA HOOKS (FIXED VALUE)
+// JAVA HOOKS
 // =======================
 Java.perform(function () {
 
     const Build   = Java.use("android.os.Build");
     const VERSION = Java.use("android.os.Build$VERSION");
 
-    // Direct .value assignment is the ONLY reliable way to spoof
-    // static final String fields in Frida. Object.defineProperty on
-    // the JS wrapper does NOT affect what Java code reads back.
     function assignField(clazz, field, fake) {
         try {
             const original = clazz[field].value;
@@ -454,9 +504,12 @@ Java.perform(function () {
     assignField(Build, "BOOTLOADER",   selected.bootloader);
     assignField(Build, "PRODUCT",      selected.product);
     assignField(Build, "USER",         selected.user);
+    // TAGS must be "release-keys" — critical for root/test-keys detection
+    assignField(Build, "TAGS",         selected.tags);
+    // Build.TIME — epoch ms of build date
+    assignField(Build, "TIME",         selected.build_time);
     assignField(VERSION, "RELEASE",    selected.os_version);
     assignField(VERSION, "SDK_INT",    selected.sdk_int);
-    // SDK_INT is an int; also spoof the string-typed SDK field
     try {
         const origSdkStr = VERSION.SDK.value;
         VERSION.SDK.value = String(selected.sdk_int);
@@ -465,28 +518,23 @@ Java.perform(function () {
         console.log(`[JAVA] WARN could not set SDK: ${e.message}`);
     }
 
-    // Also hook Build.getString() reflection path used by some apps
+    // =======================
+    // SystemProperties hook
+    // =======================
     try {
         const SystemProperties = Java.use("android.os.SystemProperties");
 
-        // Map ro.* keys -> fake values directly in Java so SystemProperties.get()
-        // returns fakes even before native hooks fire (covers the self-test too)
         SystemProperties.get.overload('java.lang.String').implementation = function (key) {
             const fake = getFakeForKeyJS(key);
             if (fake !== null) {
-                const original = this.get(key);
-//                console.log(`[JAVA] SystemProperties.get("${key}"): "${original}" -> "${fake}"`);
                 return fake;
             }
-
             return this.get(key);
         };
 
         SystemProperties.get.overload('java.lang.String', 'java.lang.String').implementation = function (key, def) {
             const fake = getFakeForKeyJS(key);
             if (fake !== null) {
-                const original = this.get(key, def);
-//                console.log(`[JAVA] SystemProperties.get("${key}", "${def}"): "${original}" -> "${fake}"`);
                 return fake;
             }
             return this.get(key, def);
@@ -497,7 +545,9 @@ Java.perform(function () {
         console.log("[JAVA] WARN SystemProperties hook failed: " + e.message);
     }
 
+    // =======================
     // ANDROID_ID
+    // =======================
     const Secure = Java.use("android.provider.Settings$Secure");
     Secure.getString.overload(
         'android.content.ContentResolver',
@@ -513,12 +563,408 @@ Java.perform(function () {
     };
 
     // =======================
-    // SELF-TEST (runs inside same Java.perform, after all assignments)
+    // System.getProperty("os.version") — kernel version string
+    // =======================
+    try {
+        const System = Java.use("java.lang.System");
+        System.getProperty.overload('java.lang.String').implementation = function (key) {
+            if (key === "os.version") {
+                const original = this.getProperty(key);
+                const fake = selected.os_kernel;
+                console.log(`[JAVA] System.getProperty("os.version"): "${original}" -> "${fake}"`);
+                return fake;
+            }
+            return this.getProperty(key);
+        };
+        System.getProperty.overload('java.lang.String', 'java.lang.String').implementation = function (key, def) {
+            if (key === "os.version") {
+                const original = this.getProperty(key, def);
+                const fake = selected.os_kernel;
+                console.log(`[JAVA] System.getProperty("os.version", def): "${original}" -> "${fake}"`);
+                return fake;
+            }
+            return this.getProperty(key, def);
+        };
+        console.log("[JAVA] System.getProperty hooked");
+    } catch (e) {
+        console.log("[JAVA] WARN System.getProperty hook failed: " + e.message);
+    }
+
+    // =======================
+    // DisplayMetrics — widthPixels / heightPixels (screen resolution)
+    // =======================
+    try {
+        const DisplayMetrics = Java.use("android.util.DisplayMetrics");
+        // Hook toString as a lightweight probe; the real patch is via field intercept.
+        // The most reliable approach: hook Resources.getDisplayMetrics() and patch result.
+        const Resources = Java.use("android.content.res.Resources");
+        // Patch the static getSystem().displayMetrics path used by PX SDK
+        const origGetSystem = Resources.getSystem;
+        Resources.getSystem.implementation = function () {
+            const res = this.getSystem();
+            try {
+                const dm = res.getDisplayMetrics();
+                const origW = dm.widthPixels;
+                const origH = dm.heightPixels;
+                dm.widthPixels  = selected.screen_width;
+                dm.heightPixels = selected.screen_height;
+                if (origW !== selected.screen_width || origH !== selected.screen_height) {
+                    console.log(`[JAVA] DisplayMetrics: "${origW}x${origH}" -> "${selected.screen_width}x${selected.screen_height}"`);
+                }
+            } catch (ex) { /* ignore */ }
+            return res;
+        };
+        console.log("[JAVA] Resources.getSystem hooked for DisplayMetrics");
+    } catch (e) {
+        console.log("[JAVA] WARN DisplayMetrics hook failed: " + e.message);
+    }
+
+    // =======================
+    // Settings.System.getInt("screen_brightness") — return realistic value 128
+    // =======================
+    try {
+        const SettingsSystem = Java.use("android.provider.Settings$System");
+        SettingsSystem.getInt.overload(
+            'android.content.ContentResolver', 'java.lang.String'
+        ).implementation = function (resolver, name) {
+            if (name === "screen_brightness") {
+                const original = this.getInt(resolver, name);
+                console.log(`[JAVA] Settings.System.getInt("screen_brightness"): "${original}" -> "128"`);
+                return 128;
+            }
+            return this.getInt(resolver, name);
+        };
+        SettingsSystem.getInt.overload(
+            'android.content.ContentResolver', 'java.lang.String', 'int'
+        ).implementation = function (resolver, name, def) {
+            if (name === "screen_brightness") {
+                const original = this.getInt(resolver, name, def);
+                console.log(`[JAVA] Settings.System.getInt("screen_brightness", def): "${original}" -> "128"`);
+                return 128;
+            }
+            return this.getInt(resolver, name, def);
+        };
+        console.log("[JAVA] Settings.System.getInt hooked");
+    } catch (e) {
+        console.log("[JAVA] WARN Settings.System.getInt hook failed: " + e.message);
+    }
+
+    // =======================
+    // TelephonyManager — operator name, SIM state, network type
+    // =======================
+    try {
+        const TelephonyManager = Java.use("android.telephony.TelephonyManager");
+
+        // getNetworkOperatorName has two overloads: () and (int subId)
+        TelephonyManager.getNetworkOperatorName.overload().implementation = function () {
+            const fake = selected.operator_name;
+            console.log(`[JAVA] getNetworkOperatorName: -> "${fake}"`);
+            return fake;
+        };
+        try {
+            TelephonyManager.getNetworkOperatorName.overload('int').implementation = function (subId) {
+                const fake = selected.operator_name;
+                console.log(`[JAVA] getNetworkOperatorName(subId): -> "${fake}"`);
+                return fake;
+            };
+        } catch (e2) { /* overload may not exist on all API levels */ }
+
+        // SIM_STATE_READY = 5 — device has a SIM inserted and ready
+        TelephonyManager.getSimState.overload().implementation = function () {
+            const original = this.getSimState();
+            console.log(`[JAVA] getSimState: "${original}" -> "5" (SIM_STATE_READY)`);
+            return 5;
+        };
+
+        // NETWORK_TYPE_LTE = 13 — wrap in try to handle SecurityException on some devices
+        try {
+            TelephonyManager.getNetworkType.overload().implementation = function () {
+                try {
+                    const original = this.getNetworkType();
+                    console.log(`[JAVA] getNetworkType: "${original}" -> "13" (LTE)`);
+                } catch (se) { /* SecurityException — original read suppressed */ }
+                return 13;
+            };
+        } catch (e3) {
+            console.log("[JAVA] WARN getNetworkType overload not found: " + e3.message);
+        }
+
+        console.log("[JAVA] TelephonyManager hooked");
+    } catch (e) {
+        console.log("[JAVA] WARN TelephonyManager hook failed: " + e.message);
+    }
+
+    // =======================
+    // PackageManager.hasSystemFeature — GPS, gyro, accel, ethernet, touch, NFC, WiFi
+    // Features that a real mid-range phone has: all true except ethernet (false)
+    // =======================
+    try {
+        const PackageManager = Java.use("android.content.pm.PackageManager");
+
+        // Features always present on a real phone
+        const pmAlwaysTrue = [
+            "android.hardware.location.gps",
+            "android.hardware.sensor.gyroscope",
+            "android.hardware.sensor.accelerometer",
+            "android.hardware.touchscreen",
+            "android.hardware.wifi",
+            "android.hardware.nfc"
+        ];
+        // Features never present on a phone
+        const pmAlwaysFalse = [
+            "android.hardware.ethernet"
+        ];
+
+        function applyFeatureHook(cls, label) {
+            try {
+                const ov1 = cls.hasSystemFeature.overload('java.lang.String');
+                const ov2 = cls.hasSystemFeature.overload('java.lang.String', 'int');
+
+                ov1.implementation = function (feature) {
+                    if (pmAlwaysTrue.indexOf(feature) !== -1)  return true;
+                    if (pmAlwaysFalse.indexOf(feature) !== -1) return false;
+                    return ov1.call(this, feature);
+                };
+
+                ov2.implementation = function (feature, version) {
+                    if (pmAlwaysTrue.indexOf(feature) !== -1)  return true;
+                    if (pmAlwaysFalse.indexOf(feature) !== -1) return false;
+                    return ov2.call(this, feature, version);
+                };
+
+                console.log(`[JAVA] ${label}.hasSystemFeature hooked`);
+            } catch (ex) {
+                console.log(`[JAVA] WARN ${label}.hasSystemFeature hook failed: ${ex.message}`);
+            }
+        }
+
+        // Hook abstract base class
+        applyFeatureHook(PackageManager, "PackageManager");
+
+        // Hook the concrete class returned by Context.getPackageManager()
+        try {
+            const AppPM = Java.use("android.app.ApplicationPackageManager");
+            applyFeatureHook(AppPM, "ApplicationPackageManager");
+        } catch (ex) {
+            console.log("[JAVA] WARN ApplicationPackageManager not found: " + ex.message);
+        }
+
+        console.log("[JAVA] PackageManager.hasSystemFeature hooked");
+    } catch (e) {
+        console.log("[JAVA] WARN PackageManager.hasSystemFeature hook failed: " + e.message);
+    }
+
+    // =======================
+    // Battery BroadcastReceiver — spoof health/level/plugged/status/temperature/voltage/technology
+    // The PX SDK calls context.registerReceiver(receiver, filter("android.intent.action.BATTERY_CHANGED"))
+    // and reads extras from the returned sticky Intent. Hook Intent.getIntExtra / getStringExtra.
+    // =======================
+    try {
+        const Intent = Java.use("android.content.Intent");
+
+        Intent.getIntExtra.implementation = function (name, defaultValue) {
+            const action = this.getAction();
+            if (action === "android.intent.action.BATTERY_CHANGED") {
+                const original = this.getIntExtra(name, defaultValue);
+                let fake = null;
+                switch (name) {
+                    case "health":      fake = 2;    break; // BATTERY_HEALTH_GOOD
+                    case "level":       fake = selected.battery_level; break;
+                    case "plugged":     fake = 0;    break; // not plugged in
+                    case "status":      fake = 3;    break; // BATTERY_STATUS_DISCHARGING
+                    case "temperature": fake = 280;  break; // 28.0 °C
+                    case "voltage":     fake = 3900; break; // 3900 mV
+                    default: break;
+                }
+                if (fake !== null) {
+                    console.log(`[JAVA] Battery.getIntExtra("${name}"): "${original}" -> "${fake}"`);
+                    return fake;
+                }
+            }
+            return this.getIntExtra(name, defaultValue);
+        };
+
+        Intent.getStringExtra.implementation = function (name) {
+            const action = this.getAction();
+            if (action === "android.intent.action.BATTERY_CHANGED") {
+                if (name === "technology") {
+                    const original = this.getStringExtra(name);
+                    console.log(`[JAVA] Battery.getStringExtra("technology"): "${original}" -> "Li-ion"`);
+                    return "Li-ion";
+                }
+            }
+            return this.getStringExtra(name);
+        };
+
+        console.log("[JAVA] Intent battery extras hooked");
+    } catch (e) {
+        console.log("[JAVA] WARN Intent hook failed: " + e.message);
+    }
+
+    // =======================
+    // Locale.getDefault() — spoof to match selected profile
+    // getDefault() is STATIC — do NOT call this.getDefault() inside (infinite recursion).
+    // All profiles use en_US so we return the permanent Locale.US static constant directly.
+    // This avoids ALL construction/retain/wrapper-disposal issues entirely.
+    // =======================
+    // =======================
+    // Locale spoofing — spoof to en_US
+    // Hooking getDefault() to return a Java object always fails with
+    // "expected return value compatible with java.util.Locale" because
+    // Frida disposes the wrapper between calls from non-Java threads.
+    // Solution: hook the String-returning methods that callers actually read.
+    // =======================
+    try {
+        const Locale = Java.use("java.util.Locale");
+
+        // toString() returns "en_US" format
+        Locale.toString.implementation = function () {
+            const orig = this.toString();
+            // Only spoof if this instance came from getDefault() context
+            // (i.e. it is not already en_US and not a constant like Locale.ENGLISH)
+            return "en_US";
+        };
+
+        // getLanguage() — returns "en"
+        Locale.getLanguage.implementation = function () {
+            return "en";
+        };
+
+        // getCountry() — returns "US"
+        Locale.getCountry.implementation = function () {
+            return "US";
+        };
+
+        // toLanguageTag() — returns "en-US" (BCP-47)
+        try {
+            Locale.toLanguageTag.implementation = function () {
+                return "en-US";
+            };
+        } catch (e2) { /* API level may not have this */ }
+
+        // getDisplayLanguage / getDisplayCountry for completeness
+        try {
+            Locale.getDisplayLanguage.overload().implementation = function () { return "English"; };
+            Locale.getDisplayCountry.overload().implementation  = function () { return "United States"; };
+        } catch (e3) { /* ignore */ }
+
+        console.log("[JAVA] Locale hooked -> en_US (via instance methods)");
+    } catch (e) {
+        console.log("[JAVA] WARN Locale hook failed: " + e.message);
+    }
+
+    // =======================
+    // Root detection — File.exists() for common su/root paths
+    // The PX SDK's m55a() calls new File(path).exists() for each entry in
+    // C0041i.f69c (a list of root indicator paths like /system/bin/su).
+    // Return false for all known root paths.
+    // =======================
+    try {
+        const File = Java.use("java.io.File");
+        const rootPaths = [
+            "/system/bin/su", "/system/xbin/su", "/sbin/su", "/system/su",
+            "/system/bin/.ext/.su", "/system/usr/we-need-root/su-backup",
+            "/system/xbin/mu", "/data/local/su", "/data/local/bin/su",
+            "/data/local/xbin/su", "/system/sd/xbin/su", "/system/bin/failsafe/su",
+            "/dev/com.koushikdutta.superuser.daemon", "/system/app/Superuser.apk",
+            "/system/app/SuperSU.apk", "/system/app/Kinguser.apk",
+            "/data/data/com.noshufou.android.su", "/data/data/eu.chainfire.supersu",
+            "/data/data/com.koushikdutta.superuser", "/data/data/com.topjohnwu.magisk",
+            "/sbin/.magisk", "/sbin/.core/bin"
+        ];
+
+        File.exists.implementation = function () {
+            const path = this.getAbsolutePath();
+            if (rootPaths.indexOf(path) !== -1) {
+                console.log(`[JAVA] File.exists("${path}") -> false (anti-root spoofed)`);
+                return false;
+            }
+            return this.exists();
+        };
+
+        console.log("[JAVA] File.exists hooked for root path suppression");
+    } catch (e) {
+        console.log("[JAVA] WARN File.exists hook failed: " + e.message);
+    }
+
+    // =======================
+    // Root detection — Runtime.exec("...su...")
+    // C0058j.m58a() runs: Runtime.getRuntime().exec("/system/xbin/which su")
+    // The catch clause sets z=false, so we simply throw an IOException to land there.
+    // =======================
+    try {
+        const Runtime     = Java.use("java.lang.Runtime");
+        const IOException = Java.use("java.io.IOException");
+
+        const suKeywords = ["which su", "/system/xbin/su", "/system/bin/su", "busybox"];
+
+        function isSuCommand(cmd) {
+            if (!cmd) return false;
+            for (let i = 0; i < suKeywords.length; i++) {
+                if (cmd.indexOf(suKeywords[i]) !== -1) return true;
+            }
+            return false;
+        }
+
+        // overload(String) — exec("cmd")
+        Runtime.exec.overload('java.lang.String').implementation = function (cmd) {
+            if (isSuCommand(cmd)) {
+                console.log(`[JAVA] Runtime.exec("${cmd}") -> throw IOException (anti-root)`);
+                throw IOException.$new("Permission denied");
+            }
+            return this.exec(cmd);
+        };
+
+        // overload(String[]) — exec(["cmd", ...])
+        Runtime.exec.overload('[Ljava.lang.String;').implementation = function (cmdArr) {
+            const joined = cmdArr ? cmdArr.join(" ") : "";
+            if (isSuCommand(joined)) {
+                console.log(`[JAVA] Runtime.exec([${joined}]) -> throw IOException (anti-root)`);
+                throw IOException.$new("Permission denied");
+            }
+            return this.exec(cmdArr);
+        };
+
+        // overload(String, String[]) — exec("cmd", envp)
+        Runtime.exec.overload('java.lang.String', '[Ljava.lang.String;').implementation = function (cmd, envp) {
+            if (isSuCommand(cmd)) {
+                console.log(`[JAVA] Runtime.exec("${cmd}", envp) -> throw IOException (anti-root)`);
+                throw IOException.$new("Permission denied");
+            }
+            return this.exec(cmd, envp);
+        };
+
+        // overload(String[], String[]) — exec(cmdArr, envp)
+        Runtime.exec.overload('[Ljava.lang.String;', '[Ljava.lang.String;').implementation = function (cmdArr, envp) {
+            const joined = cmdArr ? cmdArr.join(" ") : "";
+            if (isSuCommand(joined)) {
+                console.log(`[JAVA] Runtime.exec([${joined}], envp) -> throw IOException (anti-root)`);
+                throw IOException.$new("Permission denied");
+            }
+            return this.exec(cmdArr, envp);
+        };
+
+        // overload(String[], String[], File) — exec(cmdArr, envp, dir)
+        Runtime.exec.overload('[Ljava.lang.String;', '[Ljava.lang.String;', 'java.io.File').implementation = function (cmdArr, envp, dir) {
+            const joined = cmdArr ? cmdArr.join(" ") : "";
+            if (isSuCommand(joined)) {
+                console.log(`[JAVA] Runtime.exec([${joined}], envp, dir) -> throw IOException (anti-root)`);
+                throw IOException.$new("Permission denied");
+            }
+            return this.exec(cmdArr, envp, dir);
+        };
+
+        console.log("[JAVA] Runtime.exec hooked for su/which suppression");
+    } catch (e) {
+        console.log("[JAVA] WARN Runtime.exec hook failed: " + e.message);
+    }
+
+    // =======================
+    // SELF-TEST
     // =======================
     Java.scheduleOnMainThread(function () {
         console.log("\n========== SELF-TEST ==========");
 
-        // --- Java layer: read back the fields we just assigned ---
         const BuildT   = Java.use("android.os.Build");
         const VERSIONT = Java.use("android.os.Build$VERSION");
 
@@ -533,17 +979,18 @@ Java.perform(function () {
             ["DISPLAY",         BuildT.DISPLAY.value,      selected.display],
             ["BOOTLOADER",      BuildT.BOOTLOADER.value,   selected.bootloader],
             ["PRODUCT",         BuildT.PRODUCT.value,      selected.product],
+            ["TAGS",            BuildT.TAGS.value,         selected.tags],
             ["VERSION.RELEASE", VERSIONT.RELEASE.value,    selected.os_version],
             ["VERSION.SDK_INT", VERSIONT.SDK_INT.value,    selected.sdk_int],
             ["VERSION.SDK",     VERSIONT.SDK.value,        String(selected.sdk_int)],
         ];
 
         javaChecks.forEach(function ([field, actual, expect]) {
-            const ok = actual === expect;
+            const ok = String(actual) === String(expect);
             console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} ${field}: got="${actual}" want="${expect}"`);
         });
 
-        // --- android_id ---
+        // android_id
         try {
             const ctx = Java.use("android.app.ActivityThread")
                             .currentApplication()
@@ -556,7 +1003,130 @@ Java.perform(function () {
             console.log("[JAVA] SKIP android_id: " + e.message);
         }
 
-        // --- SystemProperties (covers both Java hook + native hook path) ---
+        // System.getProperty("os.version")
+        try {
+            const System = Java.use("java.lang.System");
+            const kernel = System.getProperty("os.version");
+            const ok = kernel === selected.os_kernel;
+            console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} os.version: got="${kernel}" want="${selected.os_kernel}"`);
+        } catch (e) {
+            console.log("[JAVA] SKIP os.version: " + e.message);
+        }
+
+        // Settings.System.getInt("screen_brightness")
+        try {
+            const ctx2 = Java.use("android.app.ActivityThread")
+                             .currentApplication()
+                             .getApplicationContext();
+            const SettingsSystem = Java.use("android.provider.Settings$System");
+            const brightness = SettingsSystem.getInt(ctx2.getContentResolver(), "screen_brightness");
+            const ok = brightness === 128;
+            console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} screen_brightness: got="${brightness}" want="128"`);
+        } catch (e) {
+            console.log("[JAVA] SKIP screen_brightness: " + e.message);
+        }
+
+        // TelephonyManager
+        try {
+            const ctx3 = Java.use("android.app.ActivityThread")
+                             .currentApplication()
+                             .getApplicationContext();
+            const TM = ctx3.getSystemService("phone");
+            const JavaTM = Java.cast(TM, Java.use("android.telephony.TelephonyManager"));
+
+            try {
+                const opName = JavaTM.getNetworkOperatorName();
+                console.log(`[JAVA] ${opName === selected.operator_name ? "PASS" : "FAIL"} operatorName: got="${opName}" want="${selected.operator_name}"`);
+            } catch (e1) {
+                console.log("[JAVA] SKIP operatorName: " + e1.message);
+            }
+
+            try {
+                const simState = JavaTM.getSimState();
+                console.log(`[JAVA] ${simState === 5 ? "PASS" : "FAIL"} simState: got="${simState}" want="5"`);
+            } catch (e2) {
+                console.log("[JAVA] SKIP simState: " + e2.message);
+            }
+
+            try {
+                const netType = JavaTM.getNetworkType();
+                console.log(`[JAVA] ${netType === 13 ? "PASS" : "FAIL"} networkType: got="${netType}" want="13"`);
+            } catch (e3) {
+                console.log("[JAVA] SKIP networkType (SecurityException expected on emulator): " + e3.message);
+            }
+        } catch (e) {
+            console.log("[JAVA] SKIP TelephonyManager: " + e.message);
+        }
+
+        // Locale — verify via string methods (getDefault() object hook is not used)
+        try {
+            const LocaleT = Java.use("java.util.Locale");
+            const def = LocaleT.getDefault();
+            const lang    = def.getLanguage();
+            const country = def.getCountry();
+            const str     = def.toString();
+            console.log(`[JAVA] ${lang === "en"   ? "PASS" : "FAIL"} locale.language: got="${lang}" want="en"`);
+            console.log(`[JAVA] ${country === "US" ? "PASS" : "FAIL"} locale.country:  got="${country}" want="US"`);
+            console.log(`[JAVA] ${str === "en_US"  ? "PASS" : "FAIL"} locale.toString: got="${str}" want="en_US"`);
+        } catch (e) {
+            console.log("[JAVA] SKIP locale: " + e.message);
+        }
+
+        // PackageManager features
+        try {
+            const ctx4 = Java.use("android.app.ActivityThread")
+                             .currentApplication()
+                             .getApplicationContext();
+            const pm = ctx4.getPackageManager();
+            const featureTests = [
+                ["android.hardware.location.gps", true],
+                ["android.hardware.sensor.gyroscope", true],
+                ["android.hardware.sensor.accelerometer", true],
+                ["android.hardware.touchscreen", true],
+                ["android.hardware.wifi", true],
+                ["android.hardware.nfc", true],
+                ["android.hardware.ethernet", false],
+            ];
+            featureTests.forEach(function ([feature, expected]) {
+                try {
+                    const actual = pm.hasSystemFeature(feature);
+                    const ok = actual === expected;
+                    const shortName = feature.replace("android.hardware.", "");
+                    console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} feature(${shortName}): got="${actual}" want="${expected}"`);
+                } catch (fe) {
+                    const shortName = feature.replace("android.hardware.", "");
+                    console.log(`[JAVA] SKIP feature(${shortName}): ${fe.message}`);
+                }
+            });
+        } catch (e) {
+            console.log("[JAVA] SKIP PackageManager features: " + e.message);
+        }
+
+        // Build.TAGS root check
+        try {
+            const tagsVal = Java.use("android.os.Build").TAGS.value;
+            const hasTestKeys = tagsVal.indexOf("test-keys") !== -1;
+            console.log(`[JAVA] ${!hasTestKeys ? "PASS" : "FAIL"} TAGS root-check: got="${tagsVal}" (test-keys=${hasTestKeys})`);
+        } catch (e) {
+            console.log("[JAVA] SKIP TAGS root-check: " + e.message);
+        }
+
+        // Runtime.exec("which su") root check — mirrors C0058j.m58a()
+        // PASS = IOException thrown → caught → z=false (not rooted)
+        try {
+            const RuntimeT = Java.use("java.lang.Runtime");
+            let exceptionThrown = false;
+            try {
+                RuntimeT.getRuntime().exec("/system/xbin/which su");
+            } catch (ioEx) {
+                exceptionThrown = true;
+            }
+            console.log(`[JAVA] ${exceptionThrown ? "PASS" : "FAIL"} Runtime.exec which-su root-check: IOException thrown=${exceptionThrown}`);
+        } catch (e) {
+            console.log("[JAVA] SKIP Runtime.exec which-su root-check: " + e.message);
+        }
+
+        // SystemProperties
         try {
             const SP = Java.use("android.os.SystemProperties");
             const nativeChecks = [
@@ -568,6 +1138,7 @@ Java.perform(function () {
                 ["ro.build.version.release", selected.os_version],
                 ["ro.build.version.sdk",     String(selected.sdk_int)],
                 ["ro.build.fingerprint",     selected.fingerprint],
+                ["ro.build.tags",            selected.tags],
             ];
             nativeChecks.forEach(function ([key, expect]) {
                 const actual = SP.get(key);
