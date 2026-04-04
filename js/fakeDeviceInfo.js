@@ -342,6 +342,13 @@ const profiles = {
         "13", "13", "14", "13", "13",
         "13", "14", "14", "12", "13"
     ],
+    // SDK_INT must match os_version: 10->29, 11->30, 12->31, 13->33, 14->34
+    sdk_int: [
+        29, 30, 31, 33, 34,
+        34, 33, 31, 33, 30,
+        33, 33, 34, 33, 33,
+        33, 34, 34, 31, 33
+    ],
     // Build.PRODUCT — matches ro.product.name, always consistent with device/brand
     product: [
         "husky",          // Pixel 8           (google)
@@ -384,6 +391,7 @@ const selected = {
     bootloader:   profiles.bootloader[idx],
     user:         profiles.user[idx],
     os_version:   profiles.os_version[idx],
+    sdk_int:      profiles.sdk_int[idx],
     product:      profiles.product[idx]
 };
 console.log("[*] Selected profile:", JSON.stringify(selected));
@@ -393,6 +401,7 @@ console.log("[*] Selected profile:", JSON.stringify(selected));
 // =======================
 const propMap = {
     "ro.build.version.release": "os_version",
+    "ro.build.version.sdk":     "sdk_int",
     "ro.build.id":              "display",
     "ro.build.display.id":      "display",
     "ro.product.model":         "model",
@@ -446,6 +455,15 @@ Java.perform(function () {
     assignField(Build, "PRODUCT",      selected.product);
     assignField(Build, "USER",         selected.user);
     assignField(VERSION, "RELEASE",    selected.os_version);
+    assignField(VERSION, "SDK_INT",    selected.sdk_int);
+    // SDK_INT is an int; also spoof the string-typed SDK field
+    try {
+        const origSdkStr = VERSION.SDK.value;
+        VERSION.SDK.value = String(selected.sdk_int);
+        console.log(`[JAVA] SDK: "${origSdkStr}" -> "${selected.sdk_int}"`);
+    } catch (e) {
+        console.log(`[JAVA] WARN could not set SDK: ${e.message}`);
+    }
 
     // Also hook Build.getString() reflection path used by some apps
     try {
@@ -516,6 +534,8 @@ Java.perform(function () {
             ["BOOTLOADER",      BuildT.BOOTLOADER.value,   selected.bootloader],
             ["PRODUCT",         BuildT.PRODUCT.value,      selected.product],
             ["VERSION.RELEASE", VERSIONT.RELEASE.value,    selected.os_version],
+            ["VERSION.SDK_INT", VERSIONT.SDK_INT.value,    selected.sdk_int],
+            ["VERSION.SDK",     VERSIONT.SDK.value,        String(selected.sdk_int)],
         ];
 
         javaChecks.forEach(function ([field, actual, expect]) {
@@ -546,6 +566,7 @@ Java.perform(function () {
                 ["ro.product.device",        selected.device],
                 ["ro.product.name",          selected.product],
                 ["ro.build.version.release", selected.os_version],
+                ["ro.build.version.sdk",     String(selected.sdk_int)],
                 ["ro.build.fingerprint",     selected.fingerprint],
             ];
             nativeChecks.forEach(function ([key, expect]) {
