@@ -4,6 +4,20 @@ function randomChoice(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
 }
 
+// Converts battery level (0–100 %) to voltage in millivolts (Android API unit).
+// Mirrors the Python reference:
+//   <=10 %  : 3.0 V + (pct/10)*0.3
+//   <=70 %  : 3.3 V + ((pct-10)/60)*0.6
+//   >70  %  : 3.9 V + ((pct-70)/30)*0.3
+function batteryPercentageToVoltage(pct) {
+    if (pct < 0 || pct > 100) return 3000;          // fallback 3.0 V
+    var v;
+    if (pct <= 10)      v = 3.0 + (pct / 10) * 0.3;
+    else if (pct <= 70) v = 3.3 + ((pct - 10) / 60) * 0.6;
+    else                v = 3.9 + ((pct - 70) / 30) * 0.3;
+    return Math.round(parseFloat(v.toFixed(2)) * 1000); // e.g. 4.15 V -> 4150 mV
+}
+
 // ===== VALUE POOLS =====
 // Each array has 20 entries; all arrays share the same index so that
 // model/manufacturer/brand/device/board/hardware/fingerprint/display/bootloader/product
@@ -413,6 +427,30 @@ const profiles = {
     // Battery level (%) per profile — realistic mid-range values
     battery_level: [
         72,85,63,91,77, 55,88,44,66,33, 79,92,51,68,84, 37,73,61,89,47
+    ],
+    // Battery temperature in tenths of °C (e.g. 317 = 31.7 °C)
+    battery_temperature: [
+        317,332,298,344,309, 287,356,273,325,301,
+        341,368,318,337,293, 305,322,378,349,314
+    ],
+    // battery_voltage is derived from battery_level via batteryPercentageToVoltage()
+    // Screen brightness (0-255) — realistic human-set values
+    screen_brightness: [
+        102,178,153,204,128, 77,230,115,191,89, 140,210,64,172,120,
+        95,185,145,220,110
+    ],
+    // Network type (TelephonyManager constants):
+    //   0  = UNKNOWN / on WiFi (no active mobile data)
+    //   8  = HSDPA  (3G)
+    //   15 = HSPA+  (3G+)
+    //   13 = LTE    (4G)
+    //   19 = LTE-CA (4G+)
+    //   20 = NR     (5G)
+    network_type: [
+         0, 13, 20, 13,  0,   // WiFi, LTE, 5G, LTE, WiFi
+        15, 13, 19,  8, 13,   // HSPA+, LTE, LTE-CA, HSDPA, LTE
+        20,  0, 13, 19, 13,   // 5G, WiFi, LTE, LTE-CA, LTE
+         0, 15, 13, 20, 13    // WiFi, HSPA+, LTE, 5G, LTE
     ]
 };
 
@@ -442,7 +480,11 @@ const selected = {
     screen_width:  profiles.screen_width[idx],
     screen_height: profiles.screen_height[idx],
     locale:        profiles.locale[idx],
-    battery_level: profiles.battery_level[idx]
+    battery_level:       profiles.battery_level[idx],
+    battery_temperature: profiles.battery_temperature[idx],
+    get battery_voltage() { return batteryPercentageToVoltage(this.battery_level); },
+    screen_brightness:   profiles.screen_brightness[idx],
+    network_type:        profiles.network_type[idx]
 };
 console.log("[*] Selected profile:", JSON.stringify(selected));
 
@@ -479,6 +521,32 @@ function getFakeForKeyJS(key) {
 // JAVA HOOKS
 // =======================
 Java.perform(function () {
+    // SSL UNPINNING BYPASS
+    // ──────────────────────────────────────────────
+    // CertificatePinner.Builder.add() — prevent pins being registered
+    // Return 'this' to keep the builder chain intact but add no pins
+    // ──────────────────────────────────────────────
+    try {
+        const CPBuilder = Java.use("okhttp3.CertificatePinner$Builder");
+
+        CPBuilder.add.overload("java.lang.String", "[Ljava.lang.String;")
+            .implementation = function (pattern, pins) {
+                console.log(`[SSL] CertificatePinner.Builder.add("${pattern}", ...) -> no-op`);
+                return this; // return builder for chaining
+            };
+
+        try {
+            CPBuilder.add.overload("java.lang.String", "java.lang.String")
+                .implementation = function (pattern, pin) {
+                    console.log(`[SSL] CertificatePinner.Builder.add("${pattern}", single) -> no-op`);
+                    return this;
+                };
+        } catch (e1) { /* overload may not exist */ }
+
+        console.log("[SSL] CertificatePinner.Builder.add hooked");
+    } catch (e) {
+        console.log("[SSL] WARN CertificatePinner.Builder.add hook failed: " + e.message);
+    }
 
     const Build   = Java.use("android.os.Build");
     const VERSION = Java.use("android.os.Build$VERSION");
@@ -620,7 +688,7 @@ Java.perform(function () {
     }
 
     // =======================
-    // Settings.System.getInt("screen_brightness") — return realistic value 128
+    // Settings.System.getInt("screen_brightness") — return realistic value from profile
     // =======================
     try {
         const SettingsSystem = Java.use("android.provider.Settings$System");
@@ -629,8 +697,8 @@ Java.perform(function () {
         ).implementation = function (resolver, name) {
             if (name === "screen_brightness") {
                 const original = this.getInt(resolver, name);
-                console.log(`[JAVA] Settings.System.getInt("screen_brightness"): "${original}" -> "128"`);
-                return 128;
+                console.log(`[JAVA] Settings.System.getInt("screen_brightness"): "${original}" -> "${selected.screen_brightness}"`);
+                return selected.screen_brightness;
             }
             return this.getInt(resolver, name);
         };
@@ -639,8 +707,8 @@ Java.perform(function () {
         ).implementation = function (resolver, name, def) {
             if (name === "screen_brightness") {
                 const original = this.getInt(resolver, name, def);
-                console.log(`[JAVA] Settings.System.getInt("screen_brightness", def): "${original}" -> "128"`);
-                return 128;
+                console.log(`[JAVA] Settings.System.getInt("screen_brightness", def): "${original}" -> "${selected.screen_brightness}"`);
+                return selected.screen_brightness;
             }
             return this.getInt(resolver, name, def);
         };
@@ -676,14 +744,23 @@ Java.perform(function () {
             return 5;
         };
 
-        // NETWORK_TYPE_LTE = 13 — wrap in try to handle SecurityException on some devices
+        // NETWORK_TYPE — use selected profile value
+        // 0=WiFi/Unknown  8=HSDPA(3G)  15=HSPA+(3G+)  13=LTE(4G)  19=LTE-CA(4G+)  20=NR(5G)
+        const networkTypeLabel = {
+            0: "WiFi/Unknown", 8: "HSDPA(3G)", 15: "HSPA+(3G+)",
+            13: "LTE(4G)", 19: "LTE-CA(4G+)", 20: "NR(5G)"
+        };
         try {
             TelephonyManager.getNetworkType.overload().implementation = function () {
+                const fake  = selected.network_type;
+                const label = networkTypeLabel[fake] || String(fake);
                 try {
                     const original = this.getNetworkType();
-                    console.log(`[JAVA] getNetworkType: "${original}" -> "13" (LTE)`);
-                } catch (se) { /* SecurityException — original read suppressed */ }
-                return 13;
+                    console.log(`[JAVA] getNetworkType: "${original}" -> "${fake}" (${label})`);
+                } catch (se) {
+                    console.log(`[JAVA] getNetworkType: -> "${fake}" (${label})`);
+                }
+                return fake;
             };
         } catch (e3) {
             console.log("[JAVA] WARN getNetworkType overload not found: " + e3.message);
@@ -772,12 +849,15 @@ Java.perform(function () {
                     case "level":       fake = selected.battery_level; break;
                     case "plugged":     fake = 0;    break; // not plugged in
                     case "status":      fake = 3;    break; // BATTERY_STATUS_DISCHARGING
-                    case "temperature": fake = 280;  break; // 28.0 °C
-                    case "voltage":     fake = 3900; break; // 3900 mV
+                    case "temperature": fake = selected.battery_temperature; break; // e.g. 317 = 31.7 °C
+                    case "voltage":     fake = selected.battery_voltage;     break; // e.g. 4343 = 4.343 V
                     default: break;
                 }
                 if (fake !== null) {
-                    console.log(`[JAVA] Battery.getIntExtra("${name}"): "${original}" -> "${fake}"`);
+                    let displayFake = fake;
+                    if (name === "temperature") displayFake = (fake / 10).toFixed(1) + " °C";
+                    if (name === "voltage")     displayFake = (fake / 1000).toFixed(3) + " V";
+                    console.log(`[JAVA] Battery.getIntExtra("${name}"): "${original}" -> "${displayFake}"`);
                     return fake;
                 }
             }
@@ -1020,8 +1100,8 @@ Java.perform(function () {
                              .getApplicationContext();
             const SettingsSystem = Java.use("android.provider.Settings$System");
             const brightness = SettingsSystem.getInt(ctx2.getContentResolver(), "screen_brightness");
-            const ok = brightness === 128;
-            console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} screen_brightness: got="${brightness}" want="128"`);
+            const ok = brightness === selected.screen_brightness;
+            console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} screen_brightness: got="${brightness}" want="${selected.screen_brightness}"`);
         } catch (e) {
             console.log("[JAVA] SKIP screen_brightness: " + e.message);
         }
@@ -1050,7 +1130,8 @@ Java.perform(function () {
 
             try {
                 const netType = JavaTM.getNetworkType();
-                console.log(`[JAVA] ${netType === 13 ? "PASS" : "FAIL"} networkType: got="${netType}" want="13"`);
+                const ok = netType === selected.network_type;
+                console.log(`[JAVA] ${ok ? "PASS" : "FAIL"} networkType: got="${netType}" want="${selected.network_type}"`);
             } catch (e3) {
                 console.log("[JAVA] SKIP networkType (SecurityException expected on emulator): " + e3.message);
             }
