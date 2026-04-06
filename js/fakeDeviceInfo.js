@@ -548,6 +548,39 @@ Java.perform(function () {
         console.log("[SSL] WARN CertificatePinner.Builder.add hook failed: " + e.message);
     }
 
+    // =======================
+    // android.view.Display — guard API-33+ methods that WebView calls based on SDK_INT
+    // When we spoof SDK_INT >= 33 on firmware < 33 the Chromium WebView tries to call
+    // Display.isHdrSdrRatioAvailable() / getHdrSdrRatio() which do not exist in the
+    // framework jar, causing a NoSuchMethodError crash. Hook them to return safe defaults.
+    // =======================
+    try {
+        const Display = Java.use("android.view.Display");
+
+        // isHdrSdrRatioAvailable() — added in API 33
+        try {
+            Display.isHdrSdrRatioAvailable.implementation = function () {
+                return false;
+            };
+            console.log("[JAVA] Display.isHdrSdrRatioAvailable hooked -> false");
+        } catch (e1) {
+            console.log("[JAVA] Display.isHdrSdrRatioAvailable not present (OK): " + e1.message);
+        }
+
+        // getHdrSdrRatio() — added in API 33, called after isHdrSdrRatioAvailable()
+        try {
+            Display.getHdrSdrRatio.implementation = function () {
+                return 1.0; // 1.0 = no HDR boost (SDR)
+            };
+            console.log("[JAVA] Display.getHdrSdrRatio hooked -> 1.0");
+        } catch (e2) {
+            console.log("[JAVA] Display.getHdrSdrRatio not present (OK): " + e2.message);
+        }
+
+    } catch (e) {
+        console.log("[JAVA] WARN Display hook failed: " + e.message);
+    }
+
     const Build   = Java.use("android.os.Build");
     const VERSION = Java.use("android.os.Build$VERSION");
 
