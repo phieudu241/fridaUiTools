@@ -41,7 +41,9 @@ from ui.kmain import Ui_MainWindow
 from utils import LogUtil, CmdUtil, FileUtil, GumTraceUtil
 from utils.AiUtil import AiService, AiWorker, FileDownloadWorker, AdbPushWorker, AdbPullWorker, CommandWorker
 from utils.LogUtil import sanitize_ansi_text
-import json, os, threading, frida
+import json, os, threading, frida as _frida_native
+from utils import FridaLogging
+frida = FridaLogging.wrap_frida_module(_frida_native)
 import platform
 import shutil
 import subprocess
@@ -3036,11 +3038,13 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         local_path = os.path.join(work_dir, os.path.basename(module_path) or "module.so")
         try:
             pull_cmd = self.adbCommandArgs() + ["pull", module_path, local_path]
+            CmdUtil.log_command(pull_cmd, label="exec")
             pull_proc = subprocess.run(pull_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             if pull_proc.returncode != 0 or not os.path.exists(local_path):
                 result["error"] = self.trText("拉取模块失败：", "Failed to pull module: ") + pull_proc.stdout.strip()
                 return result
             readelf_args = ["readelf", "--dyn-syms", "-W", local_path] if search_type == "export" else ["readelf", "--symbols", "-W", local_path]
+            CmdUtil.log_command(readelf_args, label="exec")
             readelf_proc = subprocess.run(readelf_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
             if readelf_proc.returncode != 0:
                 result["error"] = self.trText("解析模块失败：", "Failed to parse module: ") + readelf_proc.stdout.strip()
@@ -4184,10 +4188,12 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             self.ReplaceSh(shfile, savefile, name)
             CmdUtil.execCmd("chmod 0777 " + projectPath + "/sh/tmp/*")
             cmd = "bash -c " + savefile
+        CmdUtil.log_command(cmd, label="exec")
         os.system(cmd)
 
     def runAdbCommand(self, extra_args, timeout=20, log_command=True, log_output=True):
         command_args = self.adbCommandArgs() + list(extra_args)
+        CmdUtil.log_command(command_args, label="exec")
         if log_command:
             self.log(self.trText("执行命令：", "Run command: ") + " ".join(shlex.quote(part) for part in command_args))
         proc = subprocess.run(
@@ -4408,6 +4414,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
                     return preferred_version
                 return getattr(frida, "__version__", "") or ""
             command_args = [self.currentPythonExecutable(), "-c", "import frida; print(getattr(frida, '__version__', ''))"]
+            CmdUtil.log_command(command_args, label="exec")
             output = subprocess.check_output(command_args, stderr=subprocess.STDOUT, text=True).strip()
             return output
         except Exception:
@@ -4547,6 +4554,7 @@ class kmainForm(QMainWindow, Ui_MainWindow):
                 try:
                     download_command = self.buildFridaWheelDownloadCommand(version)
                     self.appendFridaVersionOutput(self.trText("缓存 frida 安装包以加速下次切换：", "Caching the frida package for faster switching: ") + " ".join(shlex.quote(arg) for arg in download_command))
+                    CmdUtil.log_command(download_command, label="exec")
                     subprocess.Popen(
                         download_command,
                         stdout=subprocess.DEVNULL,
@@ -4956,20 +4964,29 @@ class kmainForm(QMainWindow, Ui_MainWindow):
             if len(custom_port) > 0:
                 str_host = "127.0.0.1:%s" % custom_port
                 manager = frida.get_device_manager()
+                FridaLogging.wrap_device_manager(manager)
                 device = manager.add_remote_device(str_host)
+                FridaLogging.wrap_device(device)
                 return device
             selected_serial = self.selectedDeviceSerial()
             if len(selected_serial) > 0:
                 manager = frida.get_device_manager()
+                FridaLogging.wrap_device_manager(manager)
                 try:
-                    return manager.get_device(selected_serial, timeout=5)
+                    device = manager.get_device(selected_serial, timeout=5)
+                    FridaLogging.wrap_device(device)
+                    return device
                 except Exception:
                     pass
-            return frida.get_usb_device()
+            device = frida.get_usb_device()
+            FridaLogging.wrap_device(device)
+            return device
         elif self.connType=="wifi":
             str_host = "%s:%s" % (self.address, self.wifi_port)
             manager = frida.get_device_manager()
+            FridaLogging.wrap_device_manager(manager)
             device = manager.add_remote_device(str_host)
+            FridaLogging.wrap_device(device)
             return device
 
     def normalizeWifiSettings(self):

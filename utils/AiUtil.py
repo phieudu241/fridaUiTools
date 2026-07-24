@@ -10,6 +10,7 @@ import urllib.request
 from PyQt5.QtCore import QThread, pyqtSignal
 
 from utils.IniUtil import IniConfig
+from utils import CmdUtil
 
 
 AI_SECTION = "ai"
@@ -579,6 +580,7 @@ class AdbPushWorker(QThread):
     def run(self):
         try:
             self.status.emit(f"Uploading to {self.remote_path}...")
+            CmdUtil.log_command(self.command_args, label="exec")
             process = subprocess.Popen(
                 self.command_args,
                 stdout=subprocess.PIPE,
@@ -627,6 +629,7 @@ class AdbPullWorker(QThread):
     def run(self):
         try:
             self.status.emit(f"Downloading to {self.local_path}...")
+            CmdUtil.log_command(self.command_args, label="exec")
             process = subprocess.Popen(
                 self.command_args,
                 stdout=subprocess.PIPE,
@@ -690,6 +693,7 @@ class CommandWorker(QThread):
         command_text = self.commandText()
         try:
             self.started.emit(command_text)
+            CmdUtil.log_command(self.command_args, label="exec")
             process = subprocess.Popen(
                 self.command_args,
                 stdout=subprocess.PIPE,

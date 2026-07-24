@@ -7,7 +7,9 @@ import time
 from copy import copy
 
 from PyQt5.QtCore import *
-import frida
+import frida as _frida_native
+from utils import FridaLogging
+frida = FridaLogging.wrap_frida_module(_frida_native)
 import json
 import hexdump
 import hashlib
@@ -130,10 +132,12 @@ class Runthread(QThread):
         try:
             if self.isSpawn:
                 pid = self.device.spawn([pname])
-                session =self.device.attach(pid)
-
+                FridaLogging.log_call("Device.spawn_result", result=pid)
+                session = self.device.attach(pid)
+                FridaLogging.wrap_session(session)
             else:
                 session = self.device.attach(pname)
+                FridaLogging.wrap_session(session)
             # session.enable_child_gating()
             source=""
         except Exception as ex:
@@ -293,6 +297,7 @@ class Runthread(QThread):
         source = source.replace("%spawn%", "1" if self.isSpawn else "")
         source += open("./js/Wallbreaker.js", 'r', encoding="utf8").read()
         script = session.create_script(source)
+        FridaLogging.wrap_script(script)
         script.on("message", self.on_message)
         script.load()
         if self.isSpawn:
@@ -583,10 +588,12 @@ class Runthread(QThread):
             if len(custom_port)>0:
                 str_host = "%s:%s" % ("127.0.0.1", custom_port)
                 manager = frida.get_device_manager()
+                FridaLogging.wrap_device_manager(manager)
                 self.device = manager.add_remote_device(str_host)
             else:
                 if self.usb_device_id:
                     manager = frida.get_device_manager()
+                    FridaLogging.wrap_device_manager(manager)
                     try:
                         self.device = manager.get_device(self.usb_device_id, timeout=5)
                     except Exception:
@@ -596,7 +603,11 @@ class Runthread(QThread):
         elif self.connType=="wifi":
             str_host = "%s:%s"%(self.address,self.port)
             manager = frida.get_device_manager()
+            FridaLogging.wrap_device_manager(manager)
             self.device = manager.add_remote_device(str_host)
+
+        if self.device is not None:
+            FridaLogging.wrap_device(self.device)
 
         if self.attachType=="attachCurrent":
             try:
