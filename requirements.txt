@@ -1,6 +1,6 @@
 PyQt5
 QScintilla
-frida==16.7.19
+frida==17.16.3
 hexdump==3.3
 capstone==4.0.2
 keystone-engine

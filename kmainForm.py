@@ -107,7 +107,7 @@ FRIDA_LOCAL_ARCH_TO_FAMILY = {
     "x86": "x64",
     "x86_64": "x64",
 }
-FRIDA_SUPPORTED_MAJORS = [14, 15, 16]
+FRIDA_SUPPORTED_MAJORS = [14, 15, 16, 17]
 FRIDA_MENU_VERSION_LIMIT = 3
 FRIDA_RELEASE_CACHE_PATH = os.path.join(APP_ROOT, "config", "frida_versions.json")
 FRIDA_RELEASE_TAGS_API_URL = "https://api.github.com/repos/frida/frida/tags?per_page=100&page={page}"
@@ -117,6 +117,7 @@ FRIDA_FALLBACK_VERSION_CATALOG = {
     14: ["14.2.18", "14.2.17", "14.2.16"],
     15: ["15.2.2", "15.2.1", "15.2.0"],
     16: ["16.7.19", "16.7.18", "16.7.17"],
+    17: ["17.16.4", "17.16.3", "17.16.2"],
 }
 
 conf=IniConfig()
