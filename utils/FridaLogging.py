@@ -183,7 +183,7 @@ def wrap_device(device):
 def wrap_session(session):
     """Attach logging to lifecycle methods on a Frida session."""
     _wrap_target(session, "Session", (
-        "create_script",
+        # "create_script",
         "detach",
         "enable_child_gating",
         "disable_child_gating",

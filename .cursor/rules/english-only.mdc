@@ -1,0 +1,76 @@
+---
+description: All new code, comments, log messages, and user-facing strings must be in English
+alwaysApply: true
+---
+
+# English-only code, comments, and user-facing strings
+
+Every line of source code, comment, log message, dialog title, button label,
+warning text, error string, or other user-facing string that you add to this
+project must be in **English only**. This applies to:
+
+- `self.log(...)` and `self.outlog(...)` strings.
+- `QMessageBox` / `QInputDialog` text and titles.
+- Comments inside `.py`, `.js`, `.ini`, `.md` files.
+- Docstrings and inline help text.
+- Exception messages constructed for the UI.
+
+## Why
+
+- The project already ships Chinese and English `.qm` translation files; any
+  hard-coded Chinese in source bypasses the translation system and shows up
+  in the UI for English users.
+- Mixed-language log files make it hard to grep / share / paste to issues.
+- English keeps the code accessible to outside contributors and AI tooling.
+
+## Concrete examples
+
+```python
+# ❌ BAD
+self.log("附加异常,application is None err:%s" % err)
+QMessageBox().warning(self, "提示", "请先选择已连接的手机")
+
+# ✅ GOOD
+self.log("attach failed: application is None err=%s" % err)
+QMessageBox().warning(self, "Hint", "Please select a connected device first")
+```
+
+```python
+# ❌ BAD
+def checkFridaDeviceAlignment(self, packageName):
+    # 检查端口转发是否指向了旧的 frida-server
+    ...
+
+# ✅ GOOD
+def checkFridaDeviceAlignment(self, packageName):
+    # Verify that the port-forward is not pointing to a stale frida-server.
+    ...
+```
+
+```js
+// ❌ BAD
+console.log("抓包完成，共 " + count + " 条");
+
+// ✅ GOOD
+console.log("capture complete, " + count + " entries");
+```
+
+## What stays in Chinese
+
+- Existing user-facing strings in `_translate("...")` lookup calls (those go
+  through the translation files).
+- Comments inside `forms/` .qm source files (translation tables, not code).
+- Any legacy string that is already wrapped in `self._translate(...)` /
+  `self.trText(...)` — these are translated automatically and must NOT be
+  rewritten as English.
+
+If you need to display a message that should be localized, wrap it in
+`self._translate("module","English source")` so the English source becomes the
+fallback and Chinese translators can provide a `.qm` entry. Do NOT inline
+Chinese in source code.
+
+## Pre-commit mental check
+
+Before finishing a code change, scan your added lines for any CJK characters
+(`一-鿿` or `぀-ゟ゠-ヿ` ranges). If any are present outside `.qm` files,
+replace them with English.

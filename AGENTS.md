@@ -52,3 +52,5 @@
 - `forms/Custom.py` now exposes `upsertCustomScript()`, `ensureCustomHook()`, and `openCustomScript()` so other UI panels can generate/update scripts without duplicating custom-module persistence logic.
 - GumTrace templates (`GumTrace_trace_sample.js`, `GumTrace_offset_auto_trace.js`, `GumTrace_export_trigger_trace.js`) now all support module whitelists and thread-ID filtering; `pullGumTraceLog()` should also honor the workbench-configured output path and auto-open the local directory when enabled.
 
+- All new code, comments, log strings, dialog text, and error messages must be written in English only. A matching Cursor rule `.cursor/rules/english-only.mdc` enforces this and bans CJK characters from source files outside the existing `.qm` translation tables. Wrap localizable user-facing strings in `self._translate("module","English source")` or `self.trText("English source", "English source")` so translators can still provide Chinese via `.qm`.
+
