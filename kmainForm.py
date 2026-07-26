@@ -5952,6 +5952,59 @@ class kmainForm(QMainWindow, Ui_MainWindow):
         self.updateToolbarContextPanel()
         self.refreshOverviewCards()
 
+        # Device-fingerprint check: cross-check the foreground package from
+        # adb against the process list seen by frida-server. If frida-server
+        # can't see this package, the most likely cause is a stale port-forward
+        # (`adb forward tcp:11234 tcp:11234` left over from an older app) or
+        # frida-server running on a different device than the one adb is
+        # pointing at. We surface a clear warning in the log + UI.
+        self.checkFridaDeviceAlignment(packageName)
+
+    def checkFridaDeviceAlignment(self, packageName):
+        """Compare the foreground package (from adb dumpsys) against the
+        process list visible to frida-server. When they don't overlap, the
+        port-forward is stale or frida-server is on a different device, and
+        attach-by-name will silently resolve to a non-Java process."""
+        if not packageName:
+            return
+        try:
+            device = self.getFridaDevice()
+            procs = device.enumerate_processes()
+        except Exception as ex:
+            self.log("checkFridaDeviceAlignment: unable to fetch frida process list (%s)" % ex)
+            return
+        proc_names = {p.name for p in procs if getattr(p, "name", None)}
+        matched = packageName in proc_names
+        # Also accept the gadget entry / a process whose name shares a prefix
+        # with the package, because some apps use android:process overrides.
+        fuzzy = any(packageName and packageName in (n or "") for n in proc_names)
+        if matched:
+            self.log("checkFridaDeviceAlignment: frida-server can see package '%s' OK" % packageName)
+            return
+        if fuzzy:
+            self.log("checkFridaDeviceAlignment: frida-server does not list '%s' directly, but a process entry contains it." % packageName)
+            return
+        sample = ", ".join(sorted(proc_names)[:6])
+        self.log("checkFridaDeviceAlignment: WARNING - frida-server cannot find package '%s'." % packageName)
+        self.log("  Common causes: 1) port-forward 11234 points to a stale frida-server;")
+        self.log("                 2) frida-server is on a different device than adb;")
+        self.log("                 3) frida-server only sees a different app. Sample: %s" % sample)
+        try:
+            QMessageBox().warning(
+                self,
+                "frida-server / adb mismatch",
+                "frida-server cannot find package '%s'.\n\n"
+                "Common causes:\n"
+                "  1. Port-forward 11234 points to a stale frida-server.\n"
+                "     Run: adb forward --remove-all\n"
+                "          adb forward tcp:11234 tcp:11234\n"
+                "  2. frida-server is on a different device than adb.\n"
+                "  3. frida-server does not see this app at all (sample: %s).\n\n"
+                "Resolve the port-forward / device selection first, then re-attach." % (packageName, sample)
+            )
+        except Exception:
+            pass
+
     def fartOpBin(self):
         self.fartBinForm.show()
 

@@ -22,30 +22,92 @@ JAVA_PERFORM_PREFIX = re.compile(r'^\s*Java\.perform\(function\s*\(\)\s*\{', re.
 JAVA_PERFORM_SUFFIX = re.compile(r'\}\s*\)\s*;?\s*$', re.S)
 TRACE_DEBUG = os.environ.get("FRIDA_UI_DEBUG", "").lower() in ("1", "true", "yes", "on")
 
+# Frida 17+ removed the bundled Java bridge from scripts loaded via
+# session.create_script(). The CLI / frida-trace still ship the bridge, but
+# the Python host must inject it into the bundle itself, otherwise the
+# global `Java` stays undefined and `Java.perform(...)` throws. We do that
+# by prepending the bundled java.js bridge (shipped inside frida-tools)
+# and aliasing it onto globalThis.Java before any of the user scripts run.
+_BRIDGE_CACHE = {"path": None, "source": None}
+
+def _find_java_bridge_path():
+    """Return the absolute path of the bundled java.js bridge that ships
+    inside frida-tools, or None if frida-tools is not installed. The
+    bridge is the same artifact the Frida CLI prepends to every script."""
+    cached = _BRIDGE_CACHE["path"]
+    if cached is not None:
+        return cached
+    try:
+        import importlib.util
+        spec = importlib.util.find_spec("frida_tools")
+    except Exception:
+        spec = None
+    if spec is None or spec.origin is None:
+        return None
+    bridges_dir = os.path.join(os.path.dirname(spec.origin), "bridges")
+    candidate = os.path.join(bridges_dir, "java.js")
+    if os.path.isfile(candidate):
+        _BRIDGE_CACHE["path"] = candidate
+        return candidate
+    return None
+
+def load_java_bridge_prefix():
+    """Build the script prefix that materializes the Frida 17+ Java
+    bridge and aliases it to `Java`. Returns an empty string when the
+    bridge cannot be located so the rest of the bundle still loads
+    (legacy Frida 16 hosts do not need the bridge)."""
+    if _BRIDGE_CACHE["source"] is not None:
+        return _BRIDGE_CACHE["source"]
+    bridge_path = _find_java_bridge_path()
+    if bridge_path is None:
+        return ""
+    try:
+        with open(bridge_path, "r", encoding="utf8") as fp:
+            bridge_src = fp.read()
+    except Exception:
+        return ""
+    # The bridge file ends with `var bridge = (function(){ ... }());` -
+    # `bridge` is the runtime singleton. We expose it on globalThis as
+    # both `Java` (legacy) and keep the local reference so a later
+    # frida-tools-style injection can also find it.
+    prefix = (
+        "/* Frida 17+ Java bridge injection - sourced from "
+        + os.path.basename(bridge_path)
+        + " */\n"
+        + bridge_src
+        + "\n;globalThis.Java = bridge;\n"
+    )
+    _BRIDGE_CACHE["source"] = prefix
+    return prefix
+
 def wrap_java_perform_script(script_text, script_name):
     if not JAVA_PERFORM_PREFIX.match(script_text):
         return script_text
     stripped = JAVA_PERFORM_PREFIX.sub('', script_text, count=1)
     stripped = JAVA_PERFORM_SUFFIX.sub('', stripped, count=1)
+    safe_name = script_name.replace('.', '_').replace('-', '_')
     return f'''(function(){{
-function __run_when_java_ready_{script_name.replace('.', '_').replace('-', '_')}() {{
+function __run_when_java_ready_{safe_name}() {{
 {stripped}
 }}
-if (typeof Java !== "undefined" && Java.available) {{
-    Java.perform(__run_when_java_ready_{script_name.replace('.', '_').replace('-', '_')});
-}} else {{
-    var __retry_count = 0;
-    var __retry_timer = setInterval(function() {{
-        __retry_count++;
-        if (typeof Java !== "undefined" && Java.available) {{
+// Call Java.perform() unconditionally. In a single-script bundle that
+// includes multiple wrapped preset scripts, every wrapper used to wait
+// for Java.available === true, and no one actually invoked Java.perform()
+// to materialize the bridge. The synchronous-throw branch catches the
+// case where the bridge is genuinely not yet wired.
+var __retry_count = 0;
+var __retry_timer = setInterval(function () {{
+    __retry_count++;
+    try {{
+        Java.perform(__run_when_java_ready_{safe_name});
+        clearInterval(__retry_timer);
+    }} catch (performErr) {{
+        if (__retry_count >= 20) {{
             clearInterval(__retry_timer);
-            Java.perform(__run_when_java_ready_{script_name.replace('.', '_').replace('-', '_')});
-        }} else if (__retry_count >= 20) {{
-            clearInterval(__retry_timer);
-            send({{"jsname": "{script_name}", "data": "[java-wait] Java runtime not ready, skip delayed init"}});
+            send({{"jsname": "{script_name}", "data": "[java-wait] Java.perform still threw: " + performErr}});
         }}
-    }}, 500);
-}}
+    }}
+}}, 500);
 }})();'''
 
 md5 = lambda bs: hashlib.md5(bs).hexdigest()
@@ -139,11 +201,26 @@ class Runthread(QThread):
                 session = self.device.attach(pname)
                 FridaLogging.wrap_session(session)
             # session.enable_child_gating()
-            source=""
+            source = load_java_bridge_prefix()
+            if source:
+                self.log("frida 17+ Java bridge injected from frida-tools")
         except Exception as ex:
             self.log("附加异常:"+str(ex))
             self.attachOverSignel.emit("ERROR."+str(ex))
             return
+
+        # We previously ran a one-shot `__java_probe__` script here to
+        # detect stale TCP port-forwards before loading the main agent.
+        # In practice that probe races the lazy Java bridge on a freshly
+        # attached process: it sees `typeof Java === 'undefined'` for the
+        # full 3s budget on a healthy attach, AND keeping the probe
+        # script open delays `default.js` enough that its own retry
+        # window also expires with the same `java-undefined` verdict.
+        # The CLI (`frida -U -n ...`) doesn't run any probe and gets Java
+        # immediately, so the probe itself was the regression. We now
+        # delegate Java detection to `default.js`'s built-in retry loop
+        # (it polls for up to 6s) and surface a WARN only when the
+        # in-script retries all fail.
 
         for item in self.hooksData:
             if item=="r0capture":
@@ -315,7 +392,30 @@ class Runthread(QThread):
             self.dump(pname, script.exports, mds=mds)
         self.attachOverSignel.emit(pname)
         try:
-            self.loadAppInfoSignel.emit(script.exports.loadappinfo())
+            # The Java bridge is lazily materialized inside the JS agent -
+            # the very first call to loadappinfo() may return with
+            # javaPending=true before Java.perform() has had a chance to
+            # wire the bridge. Retry for a few seconds so the app-info
+            # tab reflects real class/dex data on first attach.
+            info = None
+            for retryIndex in range(20):
+                try:
+                    info = script.exports.loadappinfo()
+                except Exception as innerEx:
+                    self.log("loadAppInfo rpc failed (attempt %d): %s" % (retryIndex + 1, innerEx))
+                    info = None
+                    break
+                if isinstance(info, dict) and info.get("javaPending"):
+                    # Give the JS-side main() a chance to materialize the
+                    # bridge via Java.perform() before hammering the RPC
+                    # again. The earlier default of 200ms let the V8 event
+                    # loop race with the RPC handler so the bridge never
+                    # wired up on busier bundles.
+                    time.sleep(0.5)
+                    continue
+                break
+            if info is not None:
+                self.loadAppInfoSignel.emit(info)
         except Exception as ex:
             self.log("loadAppInfo rpc failed: " + str(ex))
 
@@ -621,16 +721,56 @@ class Runthread(QThread):
                 self.attachOverSignel.emit("ERROR.无法获取到进程列表")
                 return
 
-            target = 'Gadget' if application.identifier == 're.frida.Gadget' else application.name
-            packageName=application.identifier
+            # Prefer the package name (application.identifier) as the attach target.
+            # application.name on Android frequently returns the user-visible app
+            # label (e.g. "Fiddler") instead of the actual process name, which
+            # can resolve to a non-Java process and make Java.available stay
+            # false. The package name always identifies the right ART process.
+            packageName = application.identifier or ""
+            labelName = application.name or ""
+            target = 'Gadget' if packageName == 're.frida.Gadget' else packageName
             if len(self.attachName) <= 0:
-                for process in self.device.enumerate_processes():
-                    if target == process.name:
-                        self.attachName = process.name
-                        break
-                    if packageName== process.name:
-                        self.attachName = packageName
-                        break
+                resolved = False
+                try:
+                    procs = self.device.enumerate_processes()
+                except Exception as procsErr:
+                    self.log("enumerate_processes failed: %s" % procsErr)
+                    procs = []
+                # Pass 1: exact match against the package name (preferred).
+                if target:
+                    for process in procs:
+                        if process.name == target:
+                            self.attachName = process.name
+                            resolved = True
+                            break
+                # Pass 2: exact match against the user-visible label, only as
+                # a fallback for stripped / weirdly-named apps.
+                if not resolved and labelName and labelName != target:
+                    for process in procs:
+                        if process.name == labelName:
+                            self.log("attach hint: matched by app label '%s' (pid=%s); prefer package name '%s'." % (
+                                labelName, process.pid, packageName))
+                            self.attachName = process.name
+                            resolved = True
+                            break
+                # Pass 3: case-insensitive substring match against either name.
+                if not resolved and (target or labelName):
+                    for process in procs:
+                        pname = (process.name or "").lower()
+                        if (target and target.lower() in pname) or (
+                                labelName and labelName.lower() in pname):
+                            self.log("attach hint: fuzzy match on '%s' (pid=%s), package '%s'." % (
+                                process.name, process.pid, packageName))
+                            self.attachName = process.name
+                            resolved = True
+                            break
+                if not resolved:
+                    self.log("attach WARNING: frida-server process list contains neither '%s' nor '%s'. Possible stale port-forward or wrong device. package='%s'." % (
+                        target, labelName, packageName))
+                    # Fall back to the package name anyway so frida-server
+                    # can surface its own error message (typically a stale
+                    # port-forward that resolves to a non-Java process).
+                    self.attachName = target or labelName
 
         self._attach(self.attachName)
         print("thread over")

@@ -937,75 +937,89 @@ function loadAppInfo(){
         "classCount": 0,
         "dexCount": 0
     };
-    if (typeof Java === 'undefined' || !Java.available) {
-        appinfo["javaUnavailable"] = true;
+    // The Java bridge is lazily materialized by Frida - reading `typeof Java`
+    // at the very top of a freshly-loaded agent returns 'undefined' even on
+    // a perfectly healthy Java app. We must do the availability check from
+    // inside Java.perform() to see the real runtime state.
+    if (typeof Java === 'undefined' || typeof Java.perform !== 'function') {
+        appinfo["javaUnavailable"] = false;
+        appinfo["javaPending"] = true;
         return appinfo;
     }
     Java.perform(function(){
-        appinfo["classes"]=Java.enumerateLoadedClassesSync();
-        appinfo["runtime"]["classCount"] = appinfo["classes"].length;
         try {
-            var ActivityThread = Java.use('android.app.ActivityThread');
-            var ApplicationInfo = Java.use('android.content.pm.ApplicationInfo');
-            var Build = Java.use('android.os.Build');
-            var BuildVersion = Java.use('android.os.Build$VERSION');
-            var application = ActivityThread.currentApplication();
-            if (application) {
-                var context = application.getApplicationContext();
-                var packageName = context.getPackageName();
-                var packageManager = context.getPackageManager();
-                var packageInfo = packageManager.getPackageInfo(packageName, 0);
-                var appMeta = context.getApplicationInfo();
-                var flags = appMeta.flags.value;
-                var label = packageManager.getApplicationLabel(appMeta);
-                var supportedAbis = Build.SUPPORTED_ABIS.value;
-                var minSdkVersion = '';
-                try {
-                    minSdkVersion = appMeta.minSdkVersion.value;
-                } catch (e) {}
-                var longVersionCode = '';
-                try {
-                    longVersionCode = packageInfo.getLongVersionCode();
-                } catch (e) {
-                    longVersionCode = packageInfo.versionCode.value;
-                }
-                appinfo["package"] = {
-                    "packageName": packageName,
-                    "processName": appMeta.processName.value,
-                    "appLabel": label ? label.toString() : '',
-                    "versionName": packageInfo.versionName.value,
-                    "versionCode": '' + longVersionCode,
-                    "targetSdk": '' + appMeta.targetSdkVersion.value,
-                    "minSdk": '' + minSdkVersion,
-                    "uid": '' + appMeta.uid.value,
-                    "enabled": !!appMeta.enabled.value,
-                    "debuggable": (flags & ApplicationInfo.FLAG_DEBUGGABLE.value) !== 0,
-                    "allowBackup": (flags & ApplicationInfo.FLAG_ALLOW_BACKUP.value) !== 0,
-                    "testOnly": (flags & ApplicationInfo.FLAG_TEST_ONLY.value) !== 0,
-                    "sourceDir": appMeta.sourceDir.value,
-                    "publicSourceDir": appMeta.publicSourceDir.value,
-                    "dataDir": appMeta.dataDir.value,
-                    "nativeLibraryDir": appMeta.nativeLibraryDir.value,
-                    "taskAffinity": appMeta.taskAffinity.value,
-                    "className": appMeta.className.value,
-                    "brand": Build.BRAND.value,
-                    "model": Build.MODEL.value,
-                    "device": Build.DEVICE.value,
-                    "androidVersion": BuildVersion.RELEASE.value,
-                    "sdkInt": '' + BuildVersion.SDK_INT.value,
-                    "supportedAbis": supportedAbis ? supportedAbis.join(', ') : ''
-                };
+            if (Java.available !== true) {
+                appinfo["javaUnavailable"] = true;
+                return;
             }
-        } catch (e) {
-            appinfo["packageError"] = e.toString();
-        }
-        try {
-            appinfo["dexes"] = collectDexEntries();
-            appinfo["runtime"]["dexCount"] = appinfo["dexes"].length;
-        } catch (e) {
-            appinfo["dexes"] = [];
-            appinfo["dexError"] = e.toString();
-            appinfo["runtime"]["dexCount"] = 0;
+            appinfo["classes"]=Java.enumerateLoadedClassesSync();
+            appinfo["runtime"]["classCount"] = appinfo["classes"].length;
+            try {
+                var ActivityThread = Java.use('android.app.ActivityThread');
+                var ApplicationInfo = Java.use('android.content.pm.ApplicationInfo');
+                var Build = Java.use('android.os.Build');
+                var BuildVersion = Java.use('android.os.Build$VERSION');
+                var application = ActivityThread.currentApplication();
+                if (application) {
+                    var context = application.getApplicationContext();
+                    var packageName = context.getPackageName();
+                    var packageManager = context.getPackageManager();
+                    var packageInfo = packageManager.getPackageInfo(packageName, 0);
+                    var appMeta = context.getApplicationInfo();
+                    var flags = appMeta.flags.value;
+                    var label = packageManager.getApplicationLabel(appMeta);
+                    var supportedAbis = Build.SUPPORTED_ABIS.value;
+                    var minSdkVersion = '';
+                    try {
+                        minSdkVersion = appMeta.minSdkVersion.value;
+                    } catch (e) {}
+                    var longVersionCode = '';
+                    try {
+                        longVersionCode = packageInfo.getLongVersionCode();
+                    } catch (e) {
+                        longVersionCode = packageInfo.versionCode.value;
+                    }
+                    appinfo["package"] = {
+                        "packageName": packageName,
+                        "processName": appMeta.processName.value,
+                        "appLabel": label ? label.toString() : '',
+                        "versionName": packageInfo.versionName.value,
+                        "versionCode": '' + longVersionCode,
+                        "targetSdk": '' + appMeta.targetSdkVersion.value,
+                        "minSdk": '' + minSdkVersion,
+                        "uid": '' + appMeta.uid.value,
+                        "enabled": !!appMeta.enabled.value,
+                        "debuggable": (flags & ApplicationInfo.FLAG_DEBUGGABLE.value) !== 0,
+                        "allowBackup": (flags & ApplicationInfo.FLAG_ALLOW_BACKUP.value) !== 0,
+                        "testOnly": (flags & ApplicationInfo.FLAG_TEST_ONLY.value) !== 0,
+                        "sourceDir": appMeta.sourceDir.value,
+                        "publicSourceDir": appMeta.publicSourceDir.value,
+                        "dataDir": appMeta.dataDir.value,
+                        "nativeLibraryDir": appMeta.nativeLibraryDir.value,
+                        "taskAffinity": appMeta.taskAffinity.value,
+                        "className": appMeta.className.value,
+                        "brand": Build.BRAND.value,
+                        "model": Build.MODEL.value,
+                        "device": Build.DEVICE.value,
+                        "androidVersion": BuildVersion.RELEASE.value,
+                        "sdkInt": '' + BuildVersion.SDK_INT.value,
+                        "supportedAbis": supportedAbis ? supportedAbis.join(', ') : ''
+                    };
+                }
+            } catch (e) {
+                appinfo["packageError"] = e.toString();
+            }
+            try {
+                appinfo["dexes"] = collectDexEntries();
+                appinfo["runtime"]["dexCount"] = appinfo["dexes"].length;
+            } catch (e) {
+                appinfo["dexes"] = [];
+                appinfo["dexError"] = e.toString();
+                appinfo["runtime"]["dexCount"] = 0;
+            }
+        } catch (innerError) {
+            appinfo["javaUnavailable"] = true;
+            appinfo["javaError"] = innerError.toString();
         }
     })
     return appinfo;
@@ -1013,36 +1027,82 @@ function loadAppInfo(){
 
 function main(){
     klog("init","default.js init hook success")
-    // 异步获取 Java 类列表，通过 send 消息传回 Python
-    var javaCheck = (typeof Java !== 'undefined') ? "Java defined" : "Java undefined";
-    var javaAvail = (typeof Java !== 'undefined' && Java.available) ? "available" : "not available";
-    klog("init", "Java check: " + javaCheck + ", " + javaAvail)
-    if (typeof Java !== 'undefined' && Java.available) {
-        klog("init", "entering Java.perform for class_list")
-        Java.perform(function(){
+    // The `Java` global on Frida is lazily initialized the first time
+    // Java.perform() runs. Reading `typeof Java` at the top level right
+    // after the script loads gives "undefined" even on a perfectly
+    // healthy Java app, because the bridge has not been materialized
+    // yet. We therefore probe the runtime from inside Java.perform()
+    // and treat "transport not ready" as a soft retry, not as
+    // "Java runtime unavailable".
+    var reportJava = function (verdict, detail) {
+        klog("init", "Java check: " + verdict + (detail ? ", " + detail : ""));
+    };
+    var collectClassList = function () {
+        try {
+            var classes = Java.enumerateLoadedClassesSync().filter(function(c){
+                return c && !c.startsWith('[');
+            });
+            var msg = {};
+            msg["jsname"] = "default";
+            msg["data"] = "class_list loaded: " + classes.length;
+            msg["class_list"] = classes;
+            send(msg);
+            return true;
+        } catch(e) {
+            klog("init", "class_list error: " + e.toString());
+            return false;
+        }
+    };
+    var firstPerform = function () {
+        var attempts = 0;
+        var retry = function () {
+            attempts += 1;
+            // The Java bridge is materialized by the frida-tools Java
+            // bridge prefix injected from TraceThread.py at script load.
+            // This retry is kept as a safety net for hosts that do not
+            // ship the bridge (e.g. legacy Frida 16) where Java becomes
+            // defined a few hundred milliseconds after script load.
             try {
-                var classes = Java.enumerateLoadedClassesSync().filter(function(c){
-                    return c && !c.startsWith('[');
-                });
-                var msg = {};
-                msg["jsname"] = "default";
-                msg["data"] = "class_list loaded: " + classes.length;
-                msg["class_list"] = classes;
-                send(msg);
-            } catch(e) {
-                klog("init", "class_list error: " + e.toString());
+                if (typeof Java !== 'undefined' && typeof Java.perform === 'function') {
+                    Java.perform(function () {
+                        try {
+                            reportJava(Java.available ? "Java defined" : "Java defined (runtime unavailable)",
+                                Java.available ? "available" : "not available");
+                        } catch (e) {
+                            reportJava("Java defined", "probe threw: " + e);
+                        }
+                        if (Java.available) {
+                            collectClassList();
+                        } else {
+                            klog("init", "Java not available, skipping class_list");
+                        }
+                    });
+                    return;
+                }
+            } catch (performErr) {
+                // Java.perform threw synchronously; fall through to retry.
             }
-        });
-    } else {
-        klog("init", "Java not available, skipping class_list")
+            if (attempts < 30) {
+                setTimeout(retry, 200);
+            } else {
+                reportJava("Java bridge never loaded", "giving up after 6s");
+            }
+        };
+        setTimeout(retry, 200);
+    };
+    if (typeof Java === 'undefined' || typeof Java.perform !== 'function') {
+        reportJava("Java bridge not yet ready, retrying");
+        firstPerform();
+        return;
     }
+    firstPerform();
 }
 setImmediate(main);
 
 // 监听 Python 端的 refresh_class_list 请求
 function listenClassListRefresh() {
     recv('refresh_class_list', function() {
-        if (typeof Java !== 'undefined' && Java.available) {
+        if (typeof Java !== 'undefined' && typeof Java.perform === 'function' && Java.available) {
             Java.perform(function(){
                 try {
                     var classes = Java.enumerateLoadedClassesSync().filter(function(c){
@@ -1487,20 +1547,39 @@ function searchInfo(searchType,baseName){
 
 function listClasses() {
     var result = [];
-    if (typeof Java === 'undefined' || !Java.available) {
-        return result;
-    }
-    Java.performNow(function () {
-        for (var attempt = 0; attempt < 10; attempt++) {
-            result = Java.enumerateLoadedClassesSync().filter(function (className) {
-                return className && !className.startsWith('[');
-            });
-            if (result.length > 0) {
-                break;
+    // The Java bridge is lazily materialized; if it is not ready yet, give
+    // it a short window to come up before declaring the runtime unavailable.
+    var attempts = 0;
+    var maxAttempts = 25;
+    var tryList = function () {
+        attempts += 1;
+        if (typeof Java === 'undefined' || typeof Java.performNow !== 'function') {
+            if (attempts < maxAttempts) {
+                setTimeout(tryList, 200);
             }
-            Thread.sleep(0.2);
+            return;
         }
-    });
+        Java.performNow(function () {
+            try {
+                if (Java.available !== true) {
+                    return;
+                }
+                for (var attempt = 0; attempt < 10; attempt++) {
+                    result = Java.enumerateLoadedClassesSync().filter(function (className) {
+                        return className && !className.startsWith('[');
+                    });
+                    if (result.length > 0) {
+                        break;
+                    }
+                    Thread.sleep(0.2);
+                }
+            } catch (e) {
+                // Java.performNow callback errors leave `result` empty, which
+                // is the same outcome as "Java unavailable" - that is fine.
+            }
+        });
+    };
+    tryList();
     return result;
 }
 
@@ -1547,12 +1626,15 @@ function parseProcMapsLine(line) {
 }
 
 function readProcMapsTextWithJava() {
-    if (typeof Java === "undefined" || !Java.available) {
+    if (typeof Java === "undefined" || typeof Java.performNow !== "function") {
         return "";
     }
     var content = "";
     try {
         Java.performNow(function () {
+            if (Java.available !== true) {
+                return;
+            }
             var fis = null;
             var bos = null;
             try {
